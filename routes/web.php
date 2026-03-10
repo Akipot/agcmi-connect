@@ -8,4 +8,5 @@ use App\Http\Controllers\PageController;
 Route::controller(PageController::class)
     ->group(function () {
         Route::get('/', 'index')->name('home');
+        Route::get('/process-manual-allocation', 'processManualAllocation')->name('processManualAllocation');
     });

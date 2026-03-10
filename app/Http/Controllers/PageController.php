@@ -17,4 +17,9 @@ class PageController extends Controller
         return Inertia::render('home');
     }
 
+    public function processManualAllocation()
+    {
+        return Inertia::render('process/index');
+    }
+
 }

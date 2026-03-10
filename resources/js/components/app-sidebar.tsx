@@ -19,7 +19,7 @@ import type { NavItem } from '@/types';
 const mainNavItems: NavItem[] = [
     {
         title: 'Process Manual Allocation',
-        href: "",
+        href: `/process-manual-allocation`,
         icon: ArrowDownToDot,
     },
 ];

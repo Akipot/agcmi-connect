@@ -1,37 +1,11 @@
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Progress } from '@/components/ui/progress';
-import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import AppLayout from '@/layouts/app-layout';
-import { Location, User, type BreadcrumbItem as BreadcrumbItemType } from '@/types';
-import DocViewer, { DocViewerRenderers } from '@cyntler/react-doc-viewer';
-import '@cyntler/react-doc-viewer/dist/index.css';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { BreadcrumbItem as BreadcrumbItemType } from '@/types';
 import { Head, router, usePage } from '@inertiajs/react';
-import { ArrowCounterClockwise, BuildingIcon, Check, PaperPlaneTilt, PencilSimple, UserCheckIcon, X } from '@phosphor-icons/react';
-import axios from 'axios';
-import * as React from 'react';
+import { FootprintsIcon} from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
-import { useForm, useWatch } from 'react-hook-form';
 import { toast, Toaster } from 'sonner';
-import Swal from 'sweetalert2';
-import useSWR, { mutate } from 'swr';
-import { z } from 'zod';
 import {
     ChevronLeft,
     ChevronRight,
@@ -47,24 +21,14 @@ import {
     TrendingDown,
     Minus
 } from 'lucide-react';
-import {
-    Select,
-    SelectTrigger,
-    SelectValue,
-    SelectContent,
-    SelectItem,
-} from "@/components/ui/select";
-import { format } from "date-fns";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { WebUrl } from '@/components/weburl';
-import Pagination from "@/components/others/pagination";
-import { FormCard, type FormData } from "@/components/forms/form";
+
+import { FormCard, type FormData } from "@/components/forms/manual-allocation-form";
+import { ExcelUploadZone } from "@/components/others/excel-upload";
 
 const breadcrumbs: BreadcrumbItemType[] = [
     {
         title: 'MAS Form',
+        module: 'Process Manual Allocation',
         href: '/index',
     },
 ];
@@ -119,17 +83,17 @@ export default function MASForm() {
                                 <BreadcrumbList>
                                     <BreadcrumbItem>
                                         <BreadcrumbLink className="text-[0.75rem]">
-                                            <BuildingIcon></BuildingIcon>
+                                            <FootprintsIcon></FootprintsIcon>
                                         </BreadcrumbLink>
                                     </BreadcrumbItem>
                                     <BreadcrumbSeparator />
                                     <BreadcrumbItem>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
-                                                <BreadcrumbLink className="text-[0.75rem]">{store?.STORE_ID}</BreadcrumbLink>
+                                                <BreadcrumbLink className="text-[0.75rem]">{breadcrumbs[0].module}</BreadcrumbLink>
                                             </TooltipTrigger>
                                             <TooltipContent>
-                                                <p>Location Code</p>
+                                                <p>Module</p>
                                             </TooltipContent>
                                         </Tooltip>
                                     </BreadcrumbItem>
@@ -137,26 +101,20 @@ export default function MASForm() {
                                     <BreadcrumbItem>
                                         <Tooltip>
                                             <TooltipTrigger asChild>
-                                                <BreadcrumbPage className="text-[0.75rem]">{store?.STORE_NAME}</BreadcrumbPage>
+                                                <BreadcrumbPage className="text-[0.75rem]">{breadcrumbs[0].title}</BreadcrumbPage>
                                             </TooltipTrigger>
                                             <TooltipContent>
-                                                <p>Location</p>
+                                                <p>Page</p>
                                             </TooltipContent>
                                         </Tooltip>
                                     </BreadcrumbItem>
                                 </BreadcrumbList>
                             </Breadcrumb>
                         </div>
+
+                        <FormCard/>
                     </div>
 
-                    <div className="w-full space-y-2 px-2 md:px-1 lg:px-4 mt-2">
-
-                        <div className="w-full px-4 py-4">
-                            <FormCard
-                                onSubmit={handleSubmit}
-                            />
-                        </div>
-                    </div>
                 </>
             )
             }
