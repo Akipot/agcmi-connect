@@ -132,6 +132,42 @@
     --sidebar-ring: oklch(0.439 0 0);
 }
 
+.scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f3f4f6;
+}
+
+.scrollbar::-webkit-scrollbar {
+    height: 6px;
+    /* horizontal scrollbar height */
+    width: 6px;
+    /* vertical scrollbar width */
+}
+
+.scrollbar::-webkit-scrollbar-track {
+    background: #f3f4f6;
+    border-radius: 3px;
+}
+
+.scrollbar::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 3px;
+}
+
+/* Dark mode */
+.dark .scrollbar {
+    scrollbar-color: #9ca3af #1f2937;
+}
+
+.dark .scrollbar::-webkit-scrollbar-track {
+    background: #1f2937;
+}
+
+.dark .scrollbar::-webkit-scrollbar-thumb {
+    background-color: #9ca3af;
+}
+
+
 @layer base {
     * {
         @apply border-border;
