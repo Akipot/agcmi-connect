@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'local_api' => [
+        'base_url' => env('LOCAL_API_BASE_URL', 'http://127.0.0.1:8001/api'),
+        'path' => env('LOCAL_API_PATH'),
+    ],
+
 ];

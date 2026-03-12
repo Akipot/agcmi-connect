@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { 
     Save, Trash2, ShoppingCart, Box, CircleAlert, 
     PackagePlus, FileUp, Keyboard, Loader2, 
-    UploadCloud, Filter, Search, X,
+    UploadCloud, Filter, Search, X, Tag, Info
 } from "lucide-react";
 import axios from "axios";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ import { TextField } from "@/components/others/text-field";
 import { WpsErrorNotice } from "@/components/others/wps-error-notice";
 import { SectionTitle } from "@/components/others/section-title";
 import { EditableCell } from "@/components/others/editable-cell";
+import { WebUrl } from '@/components/others/weburl';
 
 if (typeof window !== "undefined") {
     window.Buffer = window.Buffer || Buffer;
@@ -191,6 +192,39 @@ export const FormCard: React.FC = () => {
         );
     });
 
+    /**---------------------------------------- GET LOCATIONS ---------------------------------- */
+    const [isFetchingLocations, setIsFetchingLocations] = useState(false);
+
+    const handleGetLocations = async () => {
+        if (requests.length === 0) return;
+        
+        setIsFetchingLocations(true);
+        try {
+            const plu = [...new Set(requests.map(req => req.plu))];
+            
+            const response = await fetch(`${WebUrl}/api/get-ptl-location`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ plu: plu })
+            });
+
+            if (!response.ok) throw new Error('Failed to fetch locations');
+            
+            const locationMap = await response.json();
+
+            setRequests(prev => prev.map(req => ({
+                ...req,
+                locationCode: locationMap[req.plu] || req.locationCode
+            })));
+
+        } catch (error) {
+            console.error("Lookup Error:", error);
+            alert("Failed to sync locations from Database. Please try again");
+        } finally {
+            setIsFetchingLocations(false);
+        }
+    };
+
     const handleFinalSubmit = async () => {
         const invalidItems = requests.filter(item => !item.locationCode || item.locationCode.trim() === "");
         if (invalidItems.length > 0) {
@@ -199,13 +233,21 @@ export const FormCard: React.FC = () => {
         }
         setIsSubmitting(true);
         try {
-            await axios.post('/api/manual-allocation', { items: requests });
-            toast.success("Allocation Generated successfully!");
-            setRequests([]);
+            const response = await axios.post(`${WebUrl}/api/manual-allocation`, 
+                { items: requests },
+                { responseType: 'blob' } 
+            );
+
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'allocation.xlsx');
+            document.body.appendChild(link);
+            link.click();
+            
+            toast.success("Excel generated successfully!");
         } catch (error) {
-            toast.error("Failed to generate allocation.");
-        } finally {
-            setIsSubmitting(false);
+            toast.error("Export failed.");
         }
     };
 
@@ -275,7 +317,7 @@ export const FormCard: React.FC = () => {
                             >
                                 <input type="file" accept=".xlsx" onChange={(e) => e.target.files?.[0] && processExcel(e.target.files[0])} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" disabled={loading} />
                                 {loading ? <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" /> : <UploadCloud className="w-12 h-12 text-gray-400 group-hover:text-blue-500 mb-4 transition-colors" />}
-                                <p className="text-sm text-gray-600 dark:text-slate-400 font-medium">Click or drag excel file here</p>
+                                <p className="text-sm text-gray-600 dark:text-slate-400 font-medium">Click or drag .xlsx file here</p>
                             </div>
                         </div>
                     )}
@@ -289,13 +331,26 @@ export const FormCard: React.FC = () => {
                         <h3 className="text-[11px] font-bold text-gray-500 dark:text-slate-400 flex items-center gap-2 uppercase">
                             <ShoppingCart size={14} /> STAGED ITEMS ({requests.length})
                         </h3>
-                        <Button variant="ghost" size="sm" onClick={() => { setRequests([]); setSearchQuery(""); }} className="h-6 text-[10px] text-red-500 hover:text-red-700 font-bold uppercase cursor-pointer">
+                        <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => { setRequests([]); setSearchQuery(""); }} 
+                            className="h-6 text-[10px] text-red-500 hover:text-red-700 font-bold uppercase cursor-pointer"
+                        >
                             Clear All
                         </Button>
                     </CardHeader>
 
+                    <div className="px-4 py-2 border-b border-blue-50 dark:border-blue-900/10 bg-blue-50/40 dark:bg-blue-900/5 flex items-center gap-2">
+                        <Info size={12} className="text-blue-500 shrink-0" />
+                        <p className="text-[10px] text-blue-600 dark:text-blue-400 font-medium italic">
+                            Double-click any cell (Store, Location, Qty) to manually correct values.
+                        </p>
+                    </div>
+
                     <div className="p-2 border-b dark:border-slate-800 bg-white dark:bg-slate-950 flex items-center gap-2">
-                        <div className="relative w-full max-w-sm">
+                        {/* Search Input Container */}
+                        <div className="relative flex-1 max-w-sm">
                             <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
                                 <Filter size={14} className="text-gray-400 dark:text-slate-500" />
                             </div>
@@ -307,13 +362,35 @@ export const FormCard: React.FC = () => {
                                 className="block w-full h-8 pl-9 pr-3 text-[12px] border border-gray-200 dark:border-slate-800 rounded-md bg-gray-50/50 dark:bg-slate-900/50 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-blue-400 outline-none"
                             />
                             {searchQuery && (
-                                <button onClick={() => setSearchQuery("")} className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600">
+                                <button 
+                                    onClick={() => setSearchQuery("")} 
+                                    className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600"
+                                >
                                     <X size={12} />
                                 </button>
                             )}
                         </div>
+
+                        {/* Get Locations Button */}
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleGetLocations}
+                            disabled={isFetchingLocations || requests.length === 0}
+                            className="h-8 px-3 text-[10px] font-bold gap-2 border-blue-200 text-blue-600 hover:bg-blue-50 dark:border-slate-800 dark:text-blue-400 uppercase flex items-center shadow-sm disabled:opacity-50 cursor-pointer"
+                        >
+                            {isFetchingLocations ? (
+                                <div className="h-3 w-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                                <Tag size={14} />
+                            )}
+                            {isFetchingLocations ? "Syncing..." : "Get PTL Locations"}
+                        </Button>
+
                         {searchQuery && (
-                            <span className="text-[10px] text-gray-400 italic">Showing {filteredRequests.length} of {requests.length} results</span>
+                            <span className="text-[10px] text-gray-400 italic">
+                                Showing {filteredRequests.length} of {requests.length}
+                            </span>
                         )}
                     </div>
 
@@ -334,10 +411,27 @@ export const FormCard: React.FC = () => {
                                 {filteredRequests.map((req) => {
                                     const originalIndex = requests.findIndex(r => r === req);
                                     return (
-                                        <tr key={`${req.storeCode}-${req.plu}-${originalIndex}`} className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors">
+                                        <tr 
+                                            key={`row-${originalIndex}-${req.plu}`} 
+                                            className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors"
+                                        >
                                             <td className="p-3">
-                                                <div className="font-bold text-gray-700 dark:text-slate-200">{req.storeCode}</div>
-                                                <div className="text-[10px] text-gray-400 truncate max-w-[120px]">{req.store}</div>
+                                                <div className="flex flex-col gap-0.5">
+                                                    <EditableCell 
+                                                        value={req.storeCode} 
+                                                        onChange={(v) => updateRequest(originalIndex, "storeCode", v)} 
+                                                        className="font-bold text-gray-800 dark:text-slate-200 text-[12px]"
+                                                        placeholder="Set Store Code"
+                                                        type="number"
+                                                        maxLength={4}
+                                                    />
+                                                    <EditableCell 
+                                                        value={req.store} 
+                                                        onChange={(v) => updateRequest(originalIndex, "store", v)} 
+                                                        className="text-[10px] text-gray-400 font-normal"
+                                                        placeholder="Set Store Name"
+                                                    />
+                                                </div>
                                             </td>
                                             <td className="p-3">
                                                 <div className="font-bold text-orange-600">{req.plu}</div>

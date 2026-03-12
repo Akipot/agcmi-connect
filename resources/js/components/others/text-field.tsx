@@ -43,10 +43,8 @@ export const TextField: React.FC<TextFieldProps> = ({
                         onChange={(e) => {
                             const val = e.target.value;
                             
-                            // 1. Max Length Check
                             if (maxLength && val.length > maxLength) return;
 
-                            // 2. Numeric Regex Check
                             if (isNumber && val !== "" && !/^\d+$/.test(val)) return;
 
                             field.onChange(val);
