@@ -21,7 +21,7 @@ import {
     TrendingDown,
     Minus
 } from 'lucide-react';
-import { ExcelLocalVault } from "@/components/others/excel-upload";
+import { MasterDCUpload } from "@/components/others/master-dc-upload";
 
 const breadcrumbs: BreadcrumbItemType[] = [
     {
@@ -103,7 +103,7 @@ export default function MASForm() {
                             </Breadcrumb>
                         </div>
 
-                        <ExcelLocalVault/>
+                        <MasterDCUpload/>
                     </div>
 
                 </>

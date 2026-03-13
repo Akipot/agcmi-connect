@@ -10,8 +10,7 @@ declare global {
     interface Window { XLSX: any; }
 }
 
-// Removed the { isDarkMode } prop
-export const ExcelLocalVault = () => {
+export const MasterDCUpload = () => {
     const [loading, setLoading] = useState(false);
     const [libLoaded, setLibLoaded] = useState(false);
     const [tableData, setTableData] = useState<any[]>([]);

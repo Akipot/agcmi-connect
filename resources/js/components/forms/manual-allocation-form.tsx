@@ -19,6 +19,15 @@ import { WpsErrorNotice } from "@/components/others/wps-error-notice";
 import { SectionTitle } from "@/components/others/section-title";
 import { EditableCell } from "@/components/others/editable-cell";
 import { WebUrl } from '@/components/others/weburl';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 if (typeof window !== "undefined") {
     window.Buffer = window.Buffer || Buffer;
@@ -249,50 +258,106 @@ export const FormCard: React.FC = () => {
     });
 
     /**---------------------------------------- GET LOCATIONS ---------------------------------- */
+    // const [isFetchingLocations, setIsFetchingLocations] = useState(false);
+
+    // const handleGetLocations = async () => {
+    //     if (requests.length === 0) return;
+        
+    //     setIsFetchingLocations(true);
+    //     try {
+    //         const pluList = [...new Set(requests.map(req => req.plu))];
+            
+    //         const response = await fetch(`${WebUrl}/api/get-ptl-location`, {
+    //             method: 'POST',
+    //             headers: { 'Content-Type': 'application/json' },
+    //             body: JSON.stringify({ plu: pluList })
+    //         });
+
+    //         if (!response.ok) {
+    //             toast.error("Database is offline, please try again later.");
+    //             return;
+    //         }
+            
+    //         const locationMap = await response.json();
+
+    //         if (Object.keys(locationMap).length === 0) {
+    //             toast.info("No locations found in database.");
+    //         }
+
+    //         setRequests(prev => prev.map(req => ({
+    //             ...req,
+    //             locationCode: locationMap[req.plu] || req.locationCode
+    //         })));
+
+    //         toast.success("Locations synced successfully!");
+
+    //     } catch (err: unknown) {
+    //         console.error("Lookup Error:", err);
+            
+    //         if (err instanceof Error) {
+    //             toast.error(`Connection Failed: ${err.message}`);
+    //         } else {
+    //             toast.error("Critical Network Error occurred.");
+    //         }
+    //     } finally {
+    //         setIsFetchingLocations(false);
+    //     }
+    // };
+    /**---------------------------------------- GET LOCATIONS (LOCAL) ---------------------------------- */
     const [isFetchingLocations, setIsFetchingLocations] = useState(false);
 
-    const handleGetLocations = async () => {
+        const handleGetLocations = () => {
         if (requests.length === 0) return;
         
         setIsFetchingLocations(true);
-        try {
-            const pluList = [...new Set(requests.map(req => req.plu))];
-            
-            const response = await fetch(`${WebUrl}/api/get-ptl-location`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ plu: pluList })
-            });
+        
+        setTimeout(() => {
+            try {
+                const localDataRaw = localStorage.getItem('master_dc_db'); 
+                if (!localDataRaw) {
+                    toast.error("Local Vault is empty.");
+                    setIsFetchingLocations(false);
+                    return;
+                }
 
-            if (!response.ok) {
-                toast.error("Database is offline, please try again later.");
-                return;
+                const localDb: any[] = JSON.parse(localDataRaw);
+                const locationMap: Record<string, string> = {};
+
+                localDb.forEach(item => {
+                    if (item.SKU && item.LOCATION) {
+                        const cleanSku = String(item.SKU).trim();
+                        locationMap[cleanSku] = item.LOCATION;
+                    }
+                });
+
+                let foundCount = 0;
+                
+                const updatedRequests = requests.map(req => {
+                    const searchKey = String(req.plu).trim();
+                    const newLoc = locationMap[searchKey];
+
+                    if (newLoc) {
+                        foundCount++;
+                        return { ...req, locationCode: newLoc };
+                    }
+                    return req;
+                });
+
+                setRequests(updatedRequests);
+
+                    if (foundCount === 0) {
+                    toast.info("No matching SKUs found in Master DC.");
+                } else {
+                    toast.success("Locations synced successfully!");
+                }
+
+            } catch (err) {
+                console.error("Local Lookup Error:", err);
+                toast.error("Failed to read local database.");
+            } finally {
+                setIsFetchingLocations(false);
             }
-            
-            const locationMap = await response.json();
-
-            if (Object.keys(locationMap).length === 0) {
-                toast.info("No locations found in database.");
-            }
-
-            setRequests(prev => prev.map(req => ({
-                ...req,
-                locationCode: locationMap[req.plu] || req.locationCode
-            })));
-
-            toast.success("Locations synced successfully!");
-
-        } catch (err: unknown) {
-            console.error("Lookup Error:", err);
-            
-            if (err instanceof Error) {
-                toast.error(`Connection Failed: ${err.message}`);
-            } else {
-                toast.error("Critical Network Error occurred.");
-            }
-        } finally {
-            setIsFetchingLocations(false);
-        }
+        }, 400);
     };
 
     /** -------------------------------------------- Save as Draft --------------------------------------- */
@@ -328,6 +393,16 @@ export const FormCard: React.FC = () => {
             }
         }
     }, []);
+
+    /**------------------------------------------------- Clear Draft ---------------------------------------- */
+    const [isClearOpen, setIsClearOpen] = useState(false);
+
+    const handleConfirmClear = () => {
+        setRequests([]);
+        setSearchQuery("");
+        localStorage.removeItem('allocation_draft');
+        setIsClearOpen(false);
+    };
 
     /**---------------------------------------- Generate Excel File --------------------------------------- */
 
@@ -457,14 +532,41 @@ export const FormCard: React.FC = () => {
                         <h3 className="text-[11px] font-bold text-gray-500 dark:text-slate-400 flex items-center gap-2 uppercase">
                             <ShoppingCart size={14} /> STAGED ITEMS ({requests.length})
                         </h3>
-                        <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => { setRequests([]); setSearchQuery(""); }} 
-                            className="h-6 text-[10px] text-red-500 hover:text-red-700 font-bold uppercase cursor-pointer"
-                        >
-                            Clear All
-                        </Button>
+                        <Dialog open={isClearOpen} onOpenChange={setIsClearOpen}>
+                        <DialogTrigger asChild>
+                            <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-6 text-[10px] text-red-500 hover:bg-red-500/10 font-bold uppercase cursor-pointer transition-colors"
+                            >
+                                Clear All
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[400px] border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#0a0a0a]">
+                            <DialogHeader>
+                                <DialogTitle className="text-zinc-900 dark:text-zinc-100 text-[15px]">Confirm Action</DialogTitle>
+                                <DialogDescription className="text-zinc-500 dark:text-zinc-400 text-[13px]">
+                                    This will permanently delete all staged items and your current draft. This action cannot be undone.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter className="mt-4 gap-2 sm:gap-0">
+                                <Button 
+                                    variant="ghost" 
+                                    onClick={() => setIsClearOpen(false)}
+                                    className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button 
+                                    variant="destructive" 
+                                    onClick={handleConfirmClear}
+                                    className="text-[11px] font-bold uppercase tracking-wider bg-red-600 hover:bg-red-700 cursor-pointer"
+                                >
+                                    Clear Everything
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                     </CardHeader>
 
                     <div className="px-4 py-2 border-b border-blue-50 dark:border-blue-900/10 bg-blue-50/40 dark:bg-blue-900/5 flex items-center gap-2">
