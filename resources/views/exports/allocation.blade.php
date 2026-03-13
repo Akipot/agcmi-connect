@@ -31,10 +31,10 @@
 
         {{-- Main Table Headers (Row 7) --}}
         <tr>
-            <th style="font-weight: bold; background-color: #D3D3D3; border: 1px solid #000000; text-align: center;">StoreCode</th>
-            <th style="font-weight: bold; background-color: #D3D3D3; border: 1px solid #000000; text-align: center;">StoreName</th>
+            <th style="font-weight: bold; background-color: #D3D3D3; border: 1px solid #000000; text-align: center;">Store Code</th>
+            <th style="font-weight: bold; background-color: #D3D3D3; border: 1px solid #000000; text-align: center;">Store Name</th>
             <th style="font-weight: bold; background-color: #D3D3D3; border: 1px solid #000000; text-align: center;">PLU</th>
-            <th style="font-weight: bold; background-color: #D3D3D3; border: 1px solid #000000; text-align: center;">ItemDescription</th>
+            <th style="font-weight: bold; background-color: #D3D3D3; border: 1px solid #000000; text-align: center;">Item Description</th>
             <th style="font-weight: bold; background-color: #D3D3D3; border: 1px solid #000000; text-align: center;">Location</th>
             <th style="font-weight: bold; background-color: #D3D3D3; border: 1px solid #000000; text-align: center;">QTY (PCS)</th>
             <th style="font-weight: bold; background-color: #D3D3D3; border: 1px solid #000000; text-align: center;">QTY (ON HAND)</th>
@@ -47,17 +47,15 @@
                 $pcs = $item['qtyPcs'] ?? 0;
                 $onHand = $item['qtyOnHand'] ?? 0;
                 $case = $item['qtyCase'] ?? 0;
-                
-                // If all three are zero, flag the row
+
                 $rowIsRed = ($pcs == 0 && $onHand == 0 && $case == 0);
                 
-                // Define the style string to avoid repeating it
                 $rowStyle = $rowIsRed ? 'background-color: #FFC7CE; color: #9C0006;' : '';
             @endphp
             <tr style="{{ $rowStyle }}">
                 <td style="text-align: left; border: 1px solid #000000; {{ $rowStyle }}">{{ $item['storeCode'] ?? '' }}</td>
                 <td style="text-align: left; border: 1px solid #000000; {{ $rowStyle }}">{{ $item['store'] ?? '' }}</td>
-                <td style="text-align: left; border: 1px solid #000000; {{ $rowStyle }}">'{{ $item['plu'] ?? '' }}</td> 
+                <td style="text-align: left; border: 1px solid #000000; {{ $rowStyle }}">{{ $item['plu'] ?? '' }}</td> 
                 <td style="text-align: left; border: 1px solid #000000; {{ $rowStyle }}">{{ $item['itemDescp'] ?? '' }}</td>
                 <td style="text-align: center; border: 1px solid #000000; {{ $rowStyle }}">{{ $item['locationCode'] ?? '' }}</td>
                 <td style="text-align: right; border: 1px solid #000000; {{ $rowStyle }}">{{ number_format($pcs) }}</td>

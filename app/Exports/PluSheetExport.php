@@ -5,12 +5,14 @@ namespace App\Exports;
 use Illuminate\Contracts\View\View;
 use Maatwebsite\Excel\Concerns\FromView;
 use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize; // Add this
-use Maatwebsite\Excel\Concerns\WithStyles;    // Add this for borders/alignment
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
+use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithEvents; 
+use Maatwebsite\Excel\Events\AfterSheet;   
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Illuminate\Support\Str;
 
-class PluSheetExport implements FromView, WithTitle, ShouldAutoSize, WithStyles
+class PluSheetExport implements FromView, WithTitle, ShouldAutoSize, WithStyles, WithEvents
 {
     protected $plu;
     protected $description;
@@ -23,6 +25,25 @@ class PluSheetExport implements FromView, WithTitle, ShouldAutoSize, WithStyles
         $this->items = $items;
     }
 
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function(AfterSheet $event) {
+                $dynamicPassword = now()->format('mdY');
+
+                $protection = $event->sheet->getDelegate()->getProtection();
+                
+                $protection->setPassword($dynamicPassword);
+                $protection->setSheet(true);
+                
+                $protection->setFormatColumns(true);
+                $protection->setFormatRows(true);   
+                $protection->setSort(true);         
+                $protection->setAutoFilter(true);    
+            },
+        ];
+    }
+
     public function view(): View
     {
         return view('exports.allocation', [
@@ -32,28 +53,21 @@ class PluSheetExport implements FromView, WithTitle, ShouldAutoSize, WithStyles
 
     public function title(): string
     {
-        // Clean special characters for Excel compatibility
         $title = "[{$this->plu}] " . str_replace(['/', '*', '?', '[', ']', ':', '\\'], '-', $this->description);
         return Str::limit($title, 31, '');
     }
 
-    /**
-     * Optional: Add thin borders and vertical alignment
-     */
     public function styles(Worksheet $sheet)
     {
-        // 6 header rows (5 summary + 1 spacer) + 1 column header row + data
-        $lastRow = 7 + count($this->items);
+
+        $lastRow = 8 + count($this->items);
 
         return [
-            // Bold labels in Column A, Rows 1-5
-            'A1:A5' => ['font' => ['bold' => true]],
+            'A1:A6' => ['font' => ['bold' => true]],
             
-            // Highlight the Item Description value specifically
-            'B2' => ['font' => ['bold' => true, 'italic' => true]],
+            'B2:B3' => ['font' => ['bold' => true, 'color' => ['rgb' => '1F4E78']]],
 
-            // Main table headers on Row 7
-            7 => [
+            8 => [
                 'font' => ['bold' => true],
                 'alignment' => ['horizontal' => 'center', 'vertical' => 'center'],
                 'fill' => [
@@ -62,11 +76,11 @@ class PluSheetExport implements FromView, WithTitle, ShouldAutoSize, WithStyles
                 ]
             ],
 
-            // Full grid borders for the data table
-            'A7:H' . $lastRow => [
+            'A8:H' . $lastRow => [
                 'borders' => [
                     'allBorders' => [
                         'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                        'color' => ['rgb' => '000000'],
                     ],
                 ],
             ],

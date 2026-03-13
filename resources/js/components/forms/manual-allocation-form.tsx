@@ -76,7 +76,7 @@ export const FormCard: React.FC = () => {
         });
     };
 
- /**---------------------------------------- PROCESS EXCEL ---------------------------------- */
+    /**---------------------------------------- PROCESS EXCEL ---------------------------------- */
     const processExcel = async (file: File) => {
         try {
             setLoading(true);
@@ -98,7 +98,6 @@ export const FormCard: React.FC = () => {
                     const val = cell.value?.toString().trim() || "";
                     if (val === "Store Code") {
                         const rawCode = row.getCell(colNumber + 1).value?.toString() || "";
-                        // Remove any letters/symbols from Store Code
                         globalStoreCode = rawCode.replace(/\D/g, ""); 
                     }
                     if (val === "Store Name") {
@@ -116,13 +115,31 @@ export const FormCard: React.FC = () => {
             const anchorRow = worksheet.getRow(headerRowNumber);
             anchorRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
                 const rawHeader = cell.value?.toString().toUpperCase().trim() || "";
-                if (rawHeader === "PLU") excelHeaderMap[colNumber] = "plu";
-                else if (rawHeader === "ST_CODE") excelHeaderMap[colNumber] = "storeCode";
-                else if (rawHeader === "ST_NAME") excelHeaderMap[colNumber] = "store";
-                else if (rawHeader === "DESCP" || rawHeader.includes("ITEM DESCRIPTION")) excelHeaderMap[colNumber] = "itemDescp";
-                else if (rawHeader === "OH_GS" || rawHeader.includes("ON HAND")) excelHeaderMap[colNumber] = "qtyOnHand";
-                else if (rawHeader === "PER CASE" || rawHeader.includes("QTY CASE")) excelHeaderMap[colNumber] = "qtyCase";
-                else if (rawHeader.includes("QTY PCS")) excelHeaderMap[colNumber] = "qtyPcs";
+
+                if (rawHeader === "PLU") {
+                    excelHeaderMap[colNumber] = "plu";
+                } 
+                else if (rawHeader === "ST_CODE" || rawHeader.includes("STORE CODE")) {
+                    excelHeaderMap[colNumber] = "storeCode";
+                } 
+                else if (rawHeader === "ST_NAME" || rawHeader.includes("STORE NAME")) {
+                    excelHeaderMap[colNumber] = "store";
+                } 
+                else if (rawHeader === "DESCP" || rawHeader.includes("ITEM DESCRIPTION")) {
+                    excelHeaderMap[colNumber] = "itemDescp";
+                } 
+                else if (rawHeader === "LOCATION") {
+                    excelHeaderMap[colNumber] = "locationCode";
+                }
+                else if (rawHeader === "OH_GS" || rawHeader.includes("ON HAND")) {
+                    excelHeaderMap[colNumber] = "qtyOnHand";
+                } 
+                else if (rawHeader === "PER CASE" || rawHeader.includes("QTY CASE") || rawHeader.includes("ALLOCATION")) {
+                    excelHeaderMap[colNumber] = "qtyCase";
+                } 
+                else if (rawHeader.includes("QTY PCS") || rawHeader.includes("QTY (PCS)")) {
+                    excelHeaderMap[colNumber] = "qtyPcs";
+                }
             });
 
             const importedItems: FormData[] = [];
