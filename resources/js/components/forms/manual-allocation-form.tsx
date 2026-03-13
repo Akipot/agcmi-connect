@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { 
     Save, Trash2, ShoppingCart, Box, CircleAlert, 
     PackagePlus, FileUp, Keyboard, Loader2, 
-    UploadCloud, Filter, Search, X, Tag, Info
+    UploadCloud, Filter, Search, X, Tag, Info, FileText
 } from "lucide-react";
 import axios from "axios";
 import { toast } from "sonner";
@@ -278,6 +278,40 @@ export const FormCard: React.FC = () => {
         }
     };
 
+    /** -------------------------------------------- Save as Draft --------------------------------------- */
+    const [isDraftSaving, setIsDraftSaving] = useState(false);
+
+    const handleSaveDraft = () => {
+        setIsDraftSaving(true);
+        
+        const draftData = {
+            items: requests,
+            savedDate: new Date().toISOString().split('T')[0] 
+        };
+
+        localStorage.setItem('allocation_draft', JSON.stringify(draftData));
+        
+        setTimeout(() => setIsDraftSaving(false), 500);
+        toast.success("Draft saved! It will be available until midnight.");
+    };
+
+    /**------------------------------------------------ Load Draft ------------------------------------------ */
+    useEffect(() => {
+        const rawData = localStorage.getItem('allocation_draft');
+        
+        if (rawData) {
+            const draft = JSON.parse(rawData);
+            const today = new Date().toISOString().split('T')[0];
+
+            if (draft.savedDate === today) {
+                setRequests(draft.items);
+            } else {
+                localStorage.removeItem('allocation_draft');
+                console.log("Old draft expired and was cleared.");
+            }
+        }
+    }, []);
+
     /**---------------------------------------- Generate Excel File --------------------------------------- */
 
     const handleFinalSubmit = async () => {
@@ -321,6 +355,7 @@ export const FormCard: React.FC = () => {
             toast.error("Export failed. Please check your connection or data format.");
         } finally {
             setIsSubmitting(false);
+            localStorage.removeItem('allocation_draft');
             // window.location.reload();
         }
     };
@@ -357,7 +392,7 @@ export const FormCard: React.FC = () => {
                                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                                     <TextField form={form} name="plu" label="PLU" isNumber/>
                                     <TextField form={form} name="itemDescp" label="Description" />
-                                    <TextField form={form} name="locationCode" label="Loc Code" />
+                                    <TextField form={form} name="locationCode" label="Location Code" />
                                     <TextField form={form} name="qtyPcs" label="Qty (PCS)" isNumber/>
                                     <TextField form={form} name="qtyCase" label="Qty (Case)" isNumber/>
                                     <TextField form={form} name="qtyOnHand" label="On Hand" isNumber/>
@@ -556,13 +591,27 @@ export const FormCard: React.FC = () => {
                         <span className="text-[10px] text-gray-400 dark:text-slate-500 flex items-center gap-1 font-medium italic">
                             <CircleAlert size={12}/> Verify entries before generating file.
                         </span>
-                        <Button 
-                            onClick={handleFinalSubmit} 
-                            disabled={isSubmitting || requests.length === 0} 
-                            className="bg-green-600 hover:bg-green-700 h-10 px-10 gap-2 uppercase font-bold text-xs shadow-md cursor-pointer disabled:opacity-50"
-                        >
-                            {isSubmitting ? "Processing..." : "Generate Allocation"} <Save size={16} />
-                        </Button>
+                        
+                        <div className="flex gap-2">
+                            {/* Save as Draft Button */}
+                            <Button 
+                                onClick={handleSaveDraft} // Make sure to define this function
+                                disabled={isSubmitting || requests.length === 0} 
+                                variant="outline"
+                                className="border-gray-300 dark:border-slate-700 h-10 px-6 gap-2 uppercase font-bold text-xs shadow-sm cursor-pointer disabled:opacity-50"
+                            >
+                                {isDraftSaving ? "Saving..." : "Save as Draft"} <FileText size={16} />
+                            </Button>
+
+                            {/* Generate Button */}
+                            <Button 
+                                onClick={handleFinalSubmit} 
+                                disabled={isSubmitting || requests.length === 0} 
+                                className="bg-green-600 hover:bg-green-700 h-10 px-10 gap-2 uppercase font-bold text-xs shadow-md cursor-pointer disabled:opacity-50"
+                            >
+                                {isSubmitting ? "Processing..." : "Generate Allocation"} <Save size={16} />
+                            </Button>
+                        </div>
                     </div>
                 </Card>
             ) : (
