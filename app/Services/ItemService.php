@@ -26,10 +26,11 @@ class ItemService
                 return $response->json();
             }
             
-            return [];
+            throw new \Exception("Python API returned status: " . $response->status());
+
         } catch (\Exception $e) {      
             \Log::error("Oracle Bridge Error: " . $e->getMessage());
-            return [];
+            abort(503, 'The Python Allocation Service is not running.');
         }
     }
 

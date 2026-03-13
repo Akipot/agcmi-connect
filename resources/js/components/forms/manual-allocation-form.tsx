@@ -76,6 +76,7 @@ export const FormCard: React.FC = () => {
         });
     };
 
+ /**---------------------------------------- PROCESS EXCEL ---------------------------------- */
     const processExcel = async (file: File) => {
         try {
             setLoading(true);
@@ -91,16 +92,27 @@ export const FormCard: React.FC = () => {
             let globalStoreName = "";
             const excelHeaderMap: { [key: number]: keyof FormData } = {};
 
+            // Pass 1: Find Global Store Info and Header Row
             worksheet.eachRow((row, rowNumber) => {
                 row.eachCell((cell, colNumber) => {
                     const val = cell.value?.toString().trim() || "";
-                    if (val === "Store Code") globalStoreCode = row.getCell(colNumber + 1).value?.toString() || "";
-                    if (val === "Store Name") globalStoreName = row.getCell(colNumber + 1).value?.toString() || "";
-                    if (val.toUpperCase() === "PLU" && headerRowNumber === -1) headerRowNumber = rowNumber;
+                    if (val === "Store Code") {
+                        const rawCode = row.getCell(colNumber + 1).value?.toString() || "";
+                        // Remove any letters/symbols from Store Code
+                        globalStoreCode = rawCode.replace(/\D/g, ""); 
+                    }
+                    if (val === "Store Name") {
+                        globalStoreName = row.getCell(colNumber + 1).value?.toString() || "";
+                    }
+                    if (val.toUpperCase() === "PLU" && headerRowNumber === -1) {
+                        headerRowNumber = rowNumber;
+                    }
                 });
             });
 
             if (headerRowNumber === -1) throw new Error("Could not find 'PLU' column.");
+
+            // Pass 2: Map Columns
             const anchorRow = worksheet.getRow(headerRowNumber);
             anchorRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
                 const rawHeader = cell.value?.toString().toUpperCase().trim() || "";
@@ -118,29 +130,54 @@ export const FormCard: React.FC = () => {
             const existingSet = new Set(currentRequests.map(r => `${r.storeCode}-${r.plu}`));
             let isEndOfTable = false;
 
+            // Pass 3: Collect Data
             worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
                 if (rowNumber <= headerRowNumber || isEndOfTable) return;
-                const rowData: any = { storeCode: globalStoreCode, store: globalStoreName, locationCode: "", qtyPcs: "0", qtyCase: "0", qtyOnHand: "0" };
+
+                const rowData: any = { 
+                    storeCode: globalStoreCode, 
+                    store: globalStoreName, 
+                    locationCode: "", 
+                    qtyPcs: "0", 
+                    qtyCase: "0", 
+                    qtyOnHand: "0" 
+                };
+                
                 let hasValidPlu = false;
+
                 row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
                     const mappedKey = excelHeaderMap[colNumber];
                     if (!mappedKey) return;
+
                     let cellVal: any = cell.value;
                     if (cellVal !== null && typeof cellVal === 'object') {
                         if ('result' in cellVal) cellVal = cellVal.result;
                         else if ('richText' in cellVal) cellVal = cellVal.richText.map((rt: any) => rt.text).join("");
                     }
+
                     let finalVal = (cellVal ?? "").toString().trim();
+
+                    // Stop processing if we hit footer text
                     if (finalVal.toUpperCase().startsWith("REASON") || finalVal.toUpperCase().includes("PREPARED")) {
                         isEndOfTable = true;
                         return;
                     }
+
+                    // VALIDATION: Store Code must be numeric
+                    if (mappedKey === "storeCode") {
+                        finalVal = finalVal.replace(/\D/g, "");
+                    }
+
+                    // Numeric formatting for quantities
                     if (["qtyCase", "qtyPcs", "qtyOnHand"].includes(mappedKey)) {
                         const num = parseFloat(finalVal);
                         finalVal = isNaN(num) ? "0" : Math.round(num).toString();
                     }
+
                     rowData[mappedKey] = finalVal;
-                    if (mappedKey === "plu" && finalVal && !isNaN(Number(finalVal))) hasValidPlu = true;
+                    if (mappedKey === "plu" && finalVal && !isNaN(Number(finalVal))) {
+                        hasValidPlu = true;
+                    }
                 });
 
                 if (hasValidPlu && !isEndOfTable) {
@@ -158,8 +195,10 @@ export const FormCard: React.FC = () => {
                 setRequests(prev => [...importedItems, ...prev]);
                 toast.success(`Imported ${importedItems.length} items.`);
             }
+
             const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
             if (fileInput) fileInput.value = "";
+
         } catch (error: any) {
             toast.error(error.message || "Upload Failed");
         } finally {
@@ -200,37 +239,68 @@ export const FormCard: React.FC = () => {
         
         setIsFetchingLocations(true);
         try {
-            const plu = [...new Set(requests.map(req => req.plu))];
+            const pluList = [...new Set(requests.map(req => req.plu))];
             
             const response = await fetch(`${WebUrl}/api/get-ptl-location`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ plu: plu })
+                body: JSON.stringify({ plu: pluList })
             });
 
-            if (!response.ok) throw new Error('Failed to fetch locations');
+            if (!response.ok) {
+                toast.error("Database is offline, please try again later.");
+                return;
+            }
             
             const locationMap = await response.json();
+
+            if (Object.keys(locationMap).length === 0) {
+                toast.info("No locations found in database.");
+            }
 
             setRequests(prev => prev.map(req => ({
                 ...req,
                 locationCode: locationMap[req.plu] || req.locationCode
             })));
 
-        } catch (error) {
-            console.error("Lookup Error:", error);
-            alert("Failed to sync locations from Database. Please try again");
+            toast.success("Locations synced successfully!");
+
+        } catch (err: unknown) {
+            console.error("Lookup Error:", err);
+            
+            if (err instanceof Error) {
+                toast.error(`Connection Failed: ${err.message}`);
+            } else {
+                toast.error("Critical Network Error occurred.");
+            }
         } finally {
             setIsFetchingLocations(false);
         }
     };
 
+    /**---------------------------------------- Generate Excel File --------------------------------------- */
+
     const handleFinalSubmit = async () => {
-        const invalidItems = requests.filter(item => !item.locationCode || item.locationCode.trim() === "");
+
+        const invalidItems = requests.filter(item => 
+            !item.locationCode?.trim() || 
+            !item.storeCode?.trim() || 
+            !item.store?.trim()
+        );
+
         if (invalidItems.length > 0) {
-            toast.error(`Missing Location: ${invalidItems.length} item(s) need a Location Code.`);
+
+            const missingLoc = requests.filter(i => !i.locationCode?.trim()).length;
+            const missingStore = requests.filter(i => !i.storeCode?.trim() || !i.store?.trim()).length;
+
+            let errorMsg = "Missing Information: ";
+            if (missingStore > 0) errorMsg += `${missingStore} item(s) need Store details. `;
+            if (missingLoc > 0) errorMsg += `${missingLoc} item(s) need a Location Code.`;
+
+            toast.error(errorMsg.trim());
             return;
         }
+
         setIsSubmitting(true);
         try {
             const response = await axios.post(`${WebUrl}/api/manual-allocation`, 
@@ -241,13 +311,17 @@ export const FormCard: React.FC = () => {
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', 'allocation.xlsx');
+            link.setAttribute('download', `ManualAllocation-${new Date().toISOString().slice(0,10)}.xlsx`);
             document.body.appendChild(link);
             link.click();
-            
+            document.body.removeChild(link); 
             toast.success("Excel generated successfully!");
         } catch (error) {
-            toast.error("Export failed.");
+            console.error("Export error:", error);
+            toast.error("Export failed. Please check your connection or data format.");
+        } finally {
+            setIsSubmitting(false);
+            // window.location.reload();
         }
     };
 
@@ -410,11 +484,18 @@ export const FormCard: React.FC = () => {
                             <tbody className="divide-y dark:divide-slate-800 bg-white dark:bg-slate-950">
                                 {filteredRequests.map((req) => {
                                     const originalIndex = requests.findIndex(r => r === req);
+                                    
+                                    const isInvalid = !req.storeCode?.trim() || !req.store?.trim() || !req.locationCode?.trim();
+
                                     return (
-                                        <tr 
-                                            key={`row-${originalIndex}-${req.plu}`} 
-                                            className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors"
-                                        >
+                                            <tr 
+                                                key={`row-${originalIndex}-${req.plu}`} 
+                                                className={`transition-colors border-l-[4px] ${
+                                                    isInvalid 
+                                                        ? "border-l-red-500 bg-red-50/20 dark:bg-red-900/10 hover:bg-red-50/40" 
+                                                        : "border-l-transparent hover:bg-blue-50/30 dark:hover:bg-blue-900/10"
+                                                }`}
+                                            >
                                             <td className="p-3">
                                                 <div className="flex flex-col gap-0.5">
                                                     <EditableCell 

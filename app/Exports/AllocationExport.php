@@ -2,22 +2,31 @@
 
 namespace App\Exports;
 
-use Illuminate\Contracts\View\View;
-use Maatwebsite\Excel\Concerns\FromView;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
-class AllocationExport implements FromView
+class AllocationExport implements WithMultipleSheets
 {
-    protected $requests;
+    protected $items;
 
-    public function __construct(array $requests)
+    public function __construct(array $items)
     {
-        $this->requests = $requests;
+        $this->items = collect($items);
     }
 
-    public function view(): View
+    public function sheets(): array
     {
-        return view('exports.allocation', [
-            'items' => $this->requests
-        ]);
+        $sheets = [];
+
+        
+        $grouped = $this->items->groupBy('plu');
+
+        foreach ($grouped as $plu => $data) {
+            
+            $description = $data->first()['itemDescp'] ?? 'No Description';
+            
+            $sheets[] = new PluSheetExport($plu, $description, $data);
+        }
+
+        return $sheets;
     }
 }

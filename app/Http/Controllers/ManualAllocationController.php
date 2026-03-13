@@ -25,6 +25,7 @@ class ManualAllocationController extends Controller
         ]);
 
         $items = $request->input('items');
+        // dd($items);
 
         return Excel::download(new AllocationExport($items), 'manual_allocation.xlsx');
     }
