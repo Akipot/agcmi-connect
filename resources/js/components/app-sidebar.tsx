@@ -1,9 +1,8 @@
 import { Link } from '@inertiajs/react';
-import { ArrowDownToDot, LayoutGrid, Settings2 } from 'lucide-react';
+import { ArrowDownToDot, Upload, Settings2 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
-// import { NavUser } from '@/components/nav-user';
 import {
     Sidebar,
     SidebarContent,
@@ -13,15 +12,20 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-// import { dashboard } from '@/routes';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
+    {
+        title: 'Upload Master DC Report',
+        href: `/upload-master-dc-report`,
+        icon: Upload,
+    },
     {
         title: 'Process Manual Allocation',
         href: `/process-manual-allocation`,
         icon: ArrowDownToDot,
     },
+
 ];
 
 const footerNavItems: NavItem[] = [

@@ -21,19 +21,22 @@ import {
     TrendingDown,
     Minus
 } from 'lucide-react';
-
-import { FormCard, type FormData } from "@/components/forms/manual-allocation-form";
+import { ExcelLocalVault } from "@/components/others/excel-upload";
 
 const breadcrumbs: BreadcrumbItemType[] = [
     {
-        title: 'MAS Form',
-        module: 'Process Manual Allocation',
+        title: 'Upload Master DC',
+        module: 'Upload Master DC Report',
         href: '/index',
     },
 ];
 
+    
+
 export default function MASForm() {
+    const { auth, store } = usePage<any>().props;
     const [loading, setLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
 
     /** ----------- For Loading ------------------------- */
     useEffect(() => {
@@ -46,11 +49,12 @@ export default function MASForm() {
         }
     }, [loading]);
 
+  
 
     /**-------------------------- Page Layout ----------------------*/
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="MAS Form" />
+            <Head title="Upload Master DC Report" />
             <Toaster position="top-right" />
             {loading ? (
                 <div className="space-y-4 p-8">
@@ -99,7 +103,7 @@ export default function MASForm() {
                             </Breadcrumb>
                         </div>
 
-                        <FormCard/>
+                        <ExcelLocalVault/>
                     </div>
 
                 </>

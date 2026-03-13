@@ -1,284 +1,260 @@
-import React, { useState } from 'react';
-import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileSpreadsheet, Trash2, Loader2, UploadCloud, Database, AlertCircle } from 'lucide-react';
-import * as ExcelJS from 'exceljs';
-import { Buffer } from 'buffer';
-import Step1 from "@/assets/WpsGuide/Step1.jpg";
-import Step2 from "@/assets/WpsGuide/Step2.jpg";
-import Step3 from "@/assets/WpsGuide/Step3.jpg";
+import { 
+    FileSpreadsheet, Trash2, Loader2, UploadCloud, 
+    Filter, X, AlertCircle, Info 
+} from 'lucide-react';
 
-interface ExcelUploadZoneProps {
-    // onDataLoaded: (data: any[], fileName: string) => void;
-    onClear: () => void;
+declare global {
+    interface Window { XLSX: any; }
 }
 
-export const ExcelUploadZone = ({ onClear }: ExcelUploadZoneProps) => {
+// Removed the { isDarkMode } prop
+export const ExcelLocalVault = () => {
     const [loading, setLoading] = useState(false);
-    const [fileName, setFileName] = useState<string | null>(null);
+    const [libLoaded, setLibLoaded] = useState(false);
     const [tableData, setTableData] = useState<any[]>([]);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [fileName, setFileName] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    
+    const [scrollTop, setScrollTop] = useState(0);
+    const ROW_HEIGHT = 60;
+    const VIEWPORT_HEIGHT = 600; 
 
-    const [rowCount, setRowCount] = useState(0);
-    const [localData, setLocalData] = useState<any[]>([]); 
-    const [isUploading, setIsUploading] = useState(false);
-    const [encryptionError, setEncryptionError] = useState(false);
-    // The specific headers you requested
     const finalHeaders = [
-        "ST_CODE", "ST_NAME", "PLU", "DESC", "C2", 
-        "LOCATION CODE", "QTC PCS", "QTY CASE (s)", 
-        "QTY ON HAND", "DELIVERY NOTE NUMBER"
+        "VENDOR_CODE", "VENDOR_NAME", "BARCODE", "SKU", "DESCRIPTION", "LOCATION",
+        "C2", "BUY PRICE", "TAG", "REAL OH", "OH PICK"
     ];
 
-    const processExcel = async (file: File) => {
-        try {
-            setLoading(true);
-            if (typeof window !== 'undefined' && !window.Buffer) {
-                window.Buffer = Buffer as any;
-            }
+    useEffect(() => {
+        const script = document.createElement('script');
+        script.src = "https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js";
+        script.async = true;
+        script.onload = () => setLibLoaded(true);
+        document.body.appendChild(script);
 
-            const arrayBuffer = await file.arrayBuffer();
-            const workbook = new ExcelJS.Workbook();
-            await workbook.xlsx.load(arrayBuffer);
-
-            const worksheet = workbook.getWorksheet(1) || workbook.worksheets[0];
-            if (!worksheet) throw new Error("Empty worksheet.");
-
-            let headerRowNumber = -1;
-            let stCode = "";
-            let stName = "";
-            const excelHeaderMap: { [key: number]: string } = {};
-            const jsonData: any[] = [];
-
-            // --- STEP 1: Extract Store Metadata & Find Header Row ---
-            worksheet.eachRow((row, rowNumber) => {
-                const label = row.getCell(3).value?.toString().trim(); // Column C
-                const value = row.getCell(4).value?.toString().trim(); // Column D
-
-                if (label === "Store Code") stCode = value || "";
-                if (label === "Store Name") stName = value || "";
-
-                // Find where the table starts
-                if (headerRowNumber === -1) {
-                    row.eachCell((cell) => {
-                        if (cell.value?.toString().toUpperCase().trim() === "PLU") {
-                            headerRowNumber = rowNumber;
-                        }
-                    });
-                }
-            });
-
-            // --- STEP 2: Map Excel Columns to your Short Keys ---
-            const anchorRow = worksheet.getRow(headerRowNumber);
-            anchorRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-                const rawHeader = cell.value?.toString().toUpperCase().trim() || "";
-                
-                if (rawHeader === "PLU") excelHeaderMap[colNumber] = "PLU";
-                else if (rawHeader.includes("ITEM DESCRIPTION")) excelHeaderMap[colNumber] = "DESC";
-                else if (rawHeader === "C2") excelHeaderMap[colNumber] = "C2";
-                else if (rawHeader.includes("LOCATION")) excelHeaderMap[colNumber] = "LOCATION CODE";
-                else if (rawHeader.includes("QTC PCS")) excelHeaderMap[colNumber] = "QTC PCS";
-                else if (rawHeader.includes("QTY CASE")) excelHeaderMap[colNumber] = "QTY CASE (s)";
-                else if (rawHeader.includes("ON HAND")) excelHeaderMap[colNumber] = "QTY ON HAND";
-                else if (rawHeader.includes("DELIVERY NOTE")) excelHeaderMap[colNumber] = "DELIVERY NOTE NUMBER";
-            });
-
-            // --- STEP 3: Process Data Rows ---
-            let isEndOfTable = false;
-            worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-                if (rowNumber <= headerRowNumber || isEndOfTable) return;
-
-                const rowData: any = {
-                    ST_CODE: stCode,
-                    ST_NAME: stName
-                };
-                
-                let hasValidPlu = false;
-
-                row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-                    const mappedKey = excelHeaderMap[colNumber];
-                    let val = cell.value;
-
-                    // Handle Excel objects/formulas
-                    if (val && typeof val === 'object') {
-                        if ('result' in val) val = (val as any).result;
-                        else if ('richText' in val) val = (val as any).richText.map((t: any) => t.text).join("");
-                    }
-
-                    const strVal = val?.toString().toUpperCase().trim() || "";
-                    if (strVal.startsWith("REASON") || strVal.includes("PREPARED BY")) {
-                        isEndOfTable = true;
-                    }
-
-                    if (mappedKey) {
-                        rowData[mappedKey] = val;
-                        if (mappedKey === "PLU" && val && !isNaN(Number(val))) {
-                            hasValidPlu = true;
-                        }
-                    }
-                });
-
-                if (hasValidPlu && !isEndOfTable) {
-                    jsonData.push(rowData);
-                }
-            });
-
-            setTableData(jsonData);
-            // onDataLoaded(jsonData, file.name);
-            setFileName(file.name);
-
-        } catch (error: any) {
-            alert(error.message);
-        } finally {
-            setLoading(false);
+        const savedData = localStorage.getItem('master_dc_db');
+        const savedName = localStorage.getItem('master_dc');
+        if (savedData) {
+            try {
+                setTableData(JSON.parse(savedData));
+                setFileName(savedName || "Cached Database");
+            } catch (e) { console.error("Cache corrupted"); }
         }
-    };
+    }, []);
 
-    const handleClear = () => {
-        setFileName(null);
-        setRowCount(0);
-        setLocalData([]);
-        onClear();
+    const filteredData = useMemo(() => {
+        if (!searchQuery) return tableData;
+        const lowerSearch = searchQuery.toLowerCase();
+        return tableData.filter(row => 
+            Object.values(row).some(val => String(val).toLowerCase().includes(lowerSearch))
+        );
+    }, [tableData, searchQuery]);
+
+    const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - 5);
+    const endIndex = Math.min(filteredData.length, Math.floor((scrollTop + VIEWPORT_HEIGHT) / ROW_HEIGHT) + 10);
+    const translateY = startIndex * ROW_HEIGHT;
+
+    const processExcel = async (file: File) => {
+        if (!libLoaded) return;
+        setError(null);
+        
+
+        if (!file.name.toLowerCase().endsWith('.xlsx')) {
+            setError("Invalid Format: Please open your file in Excel/WPS and 'Save As' .xlsx before uploading.");
+            return;
+        }
+
+        setLoading(true);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const data = new Uint8Array(e.target?.result as ArrayBuffer);
+            
+            // Forced delay for UI visibility
+            setTimeout(() => {
+                try {
+                    const workbook = window.XLSX.read(data, { type: 'array' });
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rows: any[][] = window.XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+                    const headerIdx = rows.findIndex(r => r.some(c => c?.toString().trim().toUpperCase() === "SKU"));
+                    
+                    if (headerIdx !== -1) {
+                        const headerRow = rows[headerIdx].map(h => h?.toString().trim().toUpperCase());
+                        const mapped = rows.slice(headerIdx + 1).filter(r => r[headerRow.indexOf("SKU")]).map(r => {
+                            const obj: any = {};
+                            finalHeaders.forEach(h => {
+                                const colIdx = headerRow.indexOf(h.toUpperCase());
+                                obj[h] = colIdx !== -1 ? r[colIdx]?.toString().trim() : "";
+                            });
+                            return obj;
+                        });
+                        setTableData(mapped);
+                        setFileName(file.name);
+                        localStorage.setItem('master_dc_db', JSON.stringify(mapped));
+                        localStorage.setItem('master_dc', file.name);
+                    } else { setError("SKU column not found."); }
+                } catch (err) { setError("Failed to read .xlsx"); }
+                setLoading(false);
+            }, 600); 
+        };
+        reader.readAsArrayBuffer(file);
     };
 
     return (
-        <div className="space-y-4 w-full">
-            <Card className="border-dashed border-2 border-muted-foreground/25 mb-2">
-                <CardHeader>
-                    <h3 className="text-md font-semibold flex items-center gap-2">
-                        <FileSpreadsheet className="w-4 h-4 text-green-600" />
-                        Import Excel Data
-                    </h3>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    
-                    {encryptionError && (
-                        <div className="mt-6 p-6 border-2 border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/20 rounded-xl space-y-4 text-sm text-red-900 dark:text-red-200 shadow-sm mb-2">
-                            <h3 className="font-bold flex items-center gap-2 text-red-950 dark:text-red-100 text-base">
-                                <AlertCircle size={20} className="text-red-600 dark:text-red-400" />
-                                Compatibility Issue: WPS Encryption Detected
-                            </h3>
-                            <p>
-                                Your version of WPS Office is using an outdated encryption method (RC4) that cannot be opened securely in this browser tool. <strong>Please create a compatible copy by following these steps:</strong>
-                            </p>
+        <div className="flex flex-col h-screen w-full bg-white dark:bg-[#0a0a0a] transition-colors duration-200 font-sans overflow-hidden">
+            
+            {/* 1. HEADER */}
+            <header className="px-6 py-4 border-b border-gray-100 dark:border-zinc-800/50 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2">
+                    {/* <FileSpreadsheet size={18} className="text-green-600 dark:text-green-500/80" /> */}
+                    <h1 className="text-[15px] font-bold text-slate-800 dark:text-zinc-200 tracking-tight">Upload Master DC</h1>
+                </div>
+                
+                <div className="flex items-center gap-2 text-[11px] font-medium text-amber-600 dark:text-amber-500/80 bg-amber-50 dark:bg-amber-500/5 px-3 py-1.5 rounded border border-amber-100 dark:border-amber-500/10">
+                    <Info size={14} />
+                    XLSX Required
+                </div>
+            </header>
+
+            {/* 2. ACTION BAR */}
+            <div className="px-6 py-3 bg-white dark:bg-[#0a0a0a] flex items-center justify-between shrink-0 border-b border-slate-50 dark:border-zinc-900/50">
+                <div className="flex items-center gap-4 flex-1">
+                    <div className="relative w-full max-sm:hidden max-w-sm">
+                        <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                            <Filter size={14} className="text-gray-400 dark:text-zinc-600" />
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Filter database..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="block w-full h-8 pl-9 pr-8 text-[12px] border border-gray-200 dark:border-zinc-800 rounded bg-gray-50/50 dark:bg-zinc-900/30 text-slate-700 dark:text-zinc-300 focus:bg-white dark:focus:bg-zinc-900 focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-700 outline-none transition-all"
+                        />
+                    </div>
+                    {error && (
+                        <div className="flex items-center gap-2 text-[11px] font-bold text-red-500/90 animate-in fade-in slide-in-from-left-1">
+                            <AlertCircle size={14} />
+                            {error}
+                        </div>
+                    )}
+                </div>
+
+                {fileName && (
+                    <div className="flex items-center gap-2">
+                        <div className="text-[11px] font-semibold px-3 py-1 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded text-zinc-600 dark:text-zinc-300">
+                            {fileName} — {tableData.length.toLocaleString()} items
+                        </div>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-zinc-400 hover:text-red-600" onClick={() => { localStorage.clear(); setTableData([]); setFileName(null); setError(null); }}>
+                            <Trash2 size={14} />
+                        </Button>
+                    </div>
+                )}
+            </div>
+
+            {/* MAIN CONTENT */}
+            <main className="flex-1 px-6 pb-6 pt-4 flex flex-col gap-4 overflow-hidden relative">
+                
+                {/* HIGH VISIBILITY LOADING SCREEN */}
+                {loading && (
+                    <div className="absolute inset-0 z-[100] flex items-center justify-center bg-zinc-50 dark:bg-[#0a0a0a]">
+                        <div className="flex flex-col items-center gap-5">
+                            {/* Simple CSS Circular Spinner */}
+                            <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-zinc-300 dark:border-zinc-800 border-t-zinc-900 dark:border-t-white" />
                             
-                            <ul className="list-decimal ml-6 space-y-6 marker:font-bold marker:text-red-700 dark:marker:text-red-500">
-                                <li>
-                                    <p>Open the file in WPS Office, click <strong>Menu/File</strong> {'>'} <strong>Save As</strong>.</p>
-                                    <img 
-                                        src={Step1} 
-                                        alt="WPS Office Save As menu screenshot" 
-                                        className="mt-2 border border-red-100 dark:border-red-900 rounded-lg shadow-inner max-w-full h-auto max-h-[150px] opacity-90 hover:opacity-100 transition-opacity" 
-                                    />
-                                </li>
-                                <li>
-                                    <p>Select <strong>Excel Workbook (*.xlsx)</strong> as the file type. </p>
-                                    <img 
-                                        src={Step2}
-                                        alt="WPS file type dropdown highlighting .xlsx format" 
-                                        className="mt-2 border border-red-100 dark:border-red-900 rounded-lg shadow-inner max-w-full h-auto max-h-[150px] opacity-90 hover:opacity-100 transition-opacity" 
-                                    />
-                                </li>
-                                <li>
-                                    <p>In <strong>Encryption/Advanced</strong> settings, <strong>Remove</strong> the password entirely.</p>
-                                    <img 
-                                        src={Step3}
-                                        alt="WPS Encryption settings with password removed" 
-                                        className="mt-2 border border-red-100 dark:border-red-900 rounded-lg shadow-inner max-w-full h-auto max-h-[150px] opacity-90 hover:opacity-100 transition-opacity" 
-                                    />
-                                </li>
-                                <li>
-                                    <p>Save this new version and <strong>upload it</strong> to the system below.</p>
-                                </li>
-                            </ul>
+                            <span className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 tracking-[0.2em] uppercase">
+                                Reading Master DC...
+                            </span>
+                        </div>
+                    </div>
+                )}
 
-                            <div className="pt-4 border-t border-red-200 dark:border-red-900/50 flex justify-between items-center">
-                                <button 
-                                    onClick={() => setEncryptionError(false)}
-                                    className="px-4 py-2 bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 text-white font-semibold rounded-lg shadow-md transition-colors cursor-pointer"
-                                >
-                                    Dismiss & Try Again
-                                </button>
+  
+
+                {!fileName && (
+                    <Card className={`border-dashed border-2 transition-colors ${error ? 'border-red-200 bg-red-50/10' : 'border-slate-200 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-900/20'}`}>
+                        <CardContent className="p-0">
+                            <div className="relative h-48 flex flex-col items-center justify-center group cursor-pointer">
+                                <input type="file" className="absolute inset-0 opacity-0 cursor-pointer z-10" accept=".xlsx" onChange={e => e.target.files?.[0] && processExcel(e.target.files[0])}/>
+                                <div className={`p-3 rounded-full shadow-sm mb-3 group-hover:scale-110 transition-transform duration-300 bg-white dark:bg-slate-800`}>
+                                    <UploadCloud size={24} className={`${error ? 'text-red-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-blue-500'}`} />
+                                </div>
+                                <p className={`text-[13px] font-medium tracking-tight ${error ? 'text-red-500' : 'text-slate-500 dark:text-slate-400'}`}>
+                                    {error ? "Format Rejected - Please use .xlsx" : "Drop your .xlsx file here"}
+                                </p>
+                                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 italic">Note: .xls and .csv are not supported.</p>
                             </div>
-                        </div>
-                    )}
+                        </CardContent>
+                    </Card>
+                )}
 
-                    {!fileName && (
-                        <div 
-                            onDragOver={(e) => e.preventDefault()}
-                            onDrop={(e) => { e.preventDefault(); processExcel(e.dataTransfer.files[0]); }} 
-                            className="relative group cursor-pointer flex flex-col items-center justify-center p-10 border-2 border-dashed border-gray-300 dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-900/30 transition-colors"
-                        >
-                            <input 
-                                type="file" 
-                                accept=".xlsx, .xls, .csv"
-                                onChange={(e) => e.target.files?.[0] && processExcel(e.target.files[0])}
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                disabled={loading}
-                            />
-                            {loading ? <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" /> : <UploadCloud className="w-12 h-12 text-gray-400 group-hover:text-blue-500 mb-4 transition-colors" />}
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                                <span className="font-semibold text-blue-600">Click to upload</span> or drag and drop
-                            </p>
-                        </div>
-                    )}
+                <div className={`flex-1 flex flex-col border border-zinc-200 dark:border-zinc-800 rounded overflow-hidden bg-white dark:bg-[#0a0a0a] ${!fileName ? 'opacity-20 grayscale pointer-events-none' : 'opacity-100'}`}>
+                    
+                    {/* HEADER SECTION */}
+                    <div className="flex bg-zinc-50 dark:bg-zinc-900/50 border-b border-zinc-200 dark:border-zinc-800 shrink-0 sticky top-0 z-10">
+                        <div className="p-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-[25%] border-r border-zinc-200 dark:border-zinc-800">Store</div>
+                        <div className="p-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-[35%] border-r border-zinc-200 dark:border-zinc-800">Product</div>
+                        <div className="p-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500 flex-1 border-r border-zinc-200 dark:border-zinc-800 text-center">Location</div>
+                        <div className="p-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500 flex-1 border-r border-zinc-200 dark:border-zinc-800 text-center">C2</div>
+                        <div className="p-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500 flex-1 border-r border-zinc-200 dark:border-zinc-800 text-center">Buy Price</div>
+                        <div className="p-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500 flex-1 border-r border-zinc-200 dark:border-zinc-800 text-center">Tag</div>
+                        <div className="p-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500 flex-1 border-r border-zinc-200 dark:border-zinc-800 text-center">Real OH</div>
+                        <div className="p-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500 flex-1 text-center">OH Pick</div>
+                    </div>
 
-                    {fileName && (
-                        <div className="space-y-4">
-                            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md flex items-center justify-between border border-blue-100 dark:border-blue-800">
-                                <div className="flex items-center gap-2">
-                                    <FileSpreadsheet className="w-4 h-4 text-blue-600" />
-                                    <div className="flex flex-col">
-                                        <span className="text-sm font-medium text-blue-700 dark:text-blue-300">{fileName}</span>
-                                        <span className="text-xs text-blue-500">ready to import</span>
+                    {/* BODY SECTION */}
+                    <div className="scrollbar flex-1 overflow-auto relative" onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}>
+                        <div style={{ height: `${filteredData.length * ROW_HEIGHT}px`, width: '100%' }} />
+                        <div className="absolute top-0 left-0 w-full" style={{ transform: `translateY(${translateY}px)` }}>
+                            {filteredData.slice(startIndex, endIndex).map((row, idx) => (
+                                <div key={idx} className="flex border-b border-zinc-100 dark:border-zinc-900/50 hover:bg-zinc-50 dark:hover:bg-zinc-900/30 transition-colors group items-center" style={{ height: ROW_HEIGHT }}>
+                                    
+                                    {/* STACKED: VENDOR CODE & NAME */}
+                                    <div className="w-[25%] px-4 flex flex-col justify-center border-r border-zinc-50 dark:border-zinc-900/50 h-full">
+                                        <span className="text-[13px] font-bold text-zinc-900 dark:text-zinc-100">
+                                            {row["VENDOR_CODE"]}
+                                        </span>
+                                        <span className="text-[10px] text-zinc-400 dark:text-zinc-500 truncate uppercase">
+                                            {row["VENDOR_NAME"]}
+                                        </span>
+                                    </div>
+
+                                    {/* STACKED: SKU & DESCRIPTION */}
+                                    <div className="w-[35%] px-4 flex flex-col justify-center border-r border-zinc-50 dark:border-zinc-900/50 h-full">
+                                        <span className="text-[13px] font-bold text-orange-600 dark:text-orange-500">
+                                            {row["SKU"]}
+                                        </span>
+                                        <span className="text-[10px] text-zinc-400 dark:text-zinc-500 truncate uppercase">
+                                            {row["DESCRIPTION"]}
+                                        </span>
+                                    </div>
+
+                                    {/* SINGLE COLUMNS */}
+                                    <div className="flex-1 text-center text-[11px] text-zinc-600 dark:text-zinc-400 border-r border-zinc-50 dark:border-zinc-900/50 font-medium">
+                                        {row["LOCATION"]}
+                                    </div>
+                                    <div className="flex-1 text-center text-[11px] text-zinc-600 dark:text-zinc-400 border-r border-zinc-50 dark:border-zinc-900/50 font-medium">
+                                        {row["C2"]}
+                                    </div>
+                                    <div className="flex-1 text-center text-[11px] text-zinc-600 dark:text-zinc-400 border-r border-zinc-50 dark:border-zinc-900/50">
+                                        {row["BUY PRICE"]}
+                                    </div>
+                                    <div className="flex-1 text-center text-[11px] text-zinc-600 dark:text-zinc-400 border-r border-zinc-50 dark:border-zinc-900/50">
+                                        {row["TAG"]}
+                                    </div>
+                                    <div className="flex-1 text-center text-[12px] font-bold text-zinc-900 dark:text-zinc-200 border-r border-zinc-50 dark:border-zinc-900/50">
+                                        {row["REAL OH"]}
+                                    </div>
+                                    <div className="flex-1 text-center text-[12px] font-bold text-blue-600 dark:text-blue-400">
+                                        {row["OH PICK"]}
                                     </div>
                                 </div>
-                                <Button variant="ghost" size="sm" onClick={handleClear} disabled={isUploading}>
-                                    <Trash2 className="w-4 h-4 text-red-500" />
-                                </Button>
-                            </div>
-
-                            <Button 
-                                // onClick={handleDatabaseUpload} 
-                                className="w-full bg-green-600 hover:bg-green-700 text-white gap-2 h-12 cursor-pointer"
-                                disabled={isUploading}
-                            >
-                                {isUploading ? (
-                                    <><Loader2 className="w-4 h-4 animate-spin" /> Processing Database...</>
-                                ) : (
-                                    <><Database className="w-4 h-4" /> Upload to System</>
-                                )}
-                            </Button>
+                            ))}
                         </div>
-                    )}
-                </CardContent>
-            </Card>
-
-            {tableData.length > 0 && (
-                <Card className="overflow-hidden">
-                    <div className="overflow-x-auto max-h-[500px]">
-                        <table className="w-full text-[11px] text-left border-collapse">
-                            <thead className="bg-slate-900 text-white sticky top-0">
-                                <tr>
-                                    {finalHeaders.map((h) => (
-                                        <th key={h} className="px-3 py-3 border-b border-slate-700 whitespace-nowrap">{h}</th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                                {tableData.map((row, i) => (
-                                    <tr key={i} className="hover:bg-blue-50/50 transition-colors">
-                                        {finalHeaders.map((h) => (
-                                            <td key={h} className="px-3 py-2 border-b whitespace-nowrap">
-                                                {row[h]?.toString() || ""}
-                                            </td>
-                                        ))}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
                     </div>
-                </Card>
-            )}
+                </div>
+            </main>
         </div>
     );
 };

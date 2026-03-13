@@ -17,6 +17,11 @@ class PageController extends Controller
         return Inertia::render('home');
     }
 
+    public function uploadMasterDCReport()
+    {
+        return Inertia::render('upload/index');
+    }
+
     public function processManualAllocation()
     {
         return Inertia::render('process/index');
