@@ -5,6 +5,7 @@ import {
     FileSpreadsheet, Trash2, Loader2, UploadCloud, 
     Filter, X, AlertCircle, Info 
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 declare global {
     interface Window { XLSX: any; }
@@ -27,6 +28,15 @@ export const MasterDCUpload = () => {
         "C2", "BUY PRICE", "TAG", "REAL OH", "OH PICK"
     ];
 
+    const clearStorage = () => {
+        localStorage.removeItem('master_dc_db');
+        localStorage.removeItem('master_dc');
+        localStorage.removeItem('master_dc_expiry');
+        setTableData([]);
+        setFileName(null);
+        setError(null);
+    };
+
     useEffect(() => {
         const script = document.createElement('script');
         script.src = "https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js";
@@ -36,11 +46,22 @@ export const MasterDCUpload = () => {
 
         const savedData = localStorage.getItem('master_dc_db');
         const savedName = localStorage.getItem('master_dc');
+        const expiryDateStr = localStorage.getItem('master_dc_expiry');
+        const today = new Date().toISOString().split('T')[0];
+
         if (savedData) {
-            try {
-                setTableData(JSON.parse(savedData));
-                setFileName(savedName || "Cached Database");
-            } catch (e) { console.error("Cache corrupted"); }
+            if (expiryDateStr !== today) {
+                clearStorage();
+                toast.info("Master DC expired. Please upload latest Master DC.");
+            } else {
+                try {
+                    setTableData(JSON.parse(savedData));
+                    setFileName(savedName || "Cached Database");
+                } catch (e) { 
+                    console.error("Cache corrupted"); 
+                    clearStorage();
+                }
+            }
         }
     }, []);
 
@@ -59,10 +80,9 @@ export const MasterDCUpload = () => {
     const processExcel = async (file: File) => {
         if (!libLoaded) return;
         setError(null);
-        
 
         if (!file.name.toLowerCase().endsWith('.xlsx')) {
-            setError("Invalid Format: Please open your file in Excel/WPS and 'Save As' .xlsx before uploading.");
+            setError("Invalid Format: Please use .xlsx");
             return;
         }
 
@@ -71,7 +91,6 @@ export const MasterDCUpload = () => {
         reader.onload = (e) => {
             const data = new Uint8Array(e.target?.result as ArrayBuffer);
             
-            // Forced delay for UI visibility
             setTimeout(() => {
                 try {
                     const workbook = window.XLSX.read(data, { type: 'array' });
@@ -89,12 +108,20 @@ export const MasterDCUpload = () => {
                             });
                             return obj;
                         });
+
+                        const today = new Date().toISOString().split('T')[0];
+
                         setTableData(mapped);
                         setFileName(file.name);
                         localStorage.setItem('master_dc_db', JSON.stringify(mapped));
                         localStorage.setItem('master_dc', file.name);
-                    } else { setError("SKU column not found."); }
-                } catch (err) { setError("Failed to read .xlsx"); }
+                        localStorage.setItem('master_dc_expiry', today);
+                    } else { 
+                        setError("SKU column not found."); 
+                    }
+                } catch (err) { 
+                    setError("Failed to read .xlsx"); 
+                }
                 setLoading(false);
             }, 600); 
         };
@@ -126,7 +153,7 @@ export const MasterDCUpload = () => {
                         </div>
                         <input
                             type="text"
-                            placeholder="Filter database..."
+                            placeholder="Filter Master DC..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="block w-full h-8 pl-9 pr-8 text-[12px] border border-gray-200 dark:border-zinc-800 rounded bg-gray-50/50 dark:bg-zinc-900/30 text-slate-700 dark:text-zinc-300 focus:bg-white dark:focus:bg-zinc-900 focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-700 outline-none transition-all"

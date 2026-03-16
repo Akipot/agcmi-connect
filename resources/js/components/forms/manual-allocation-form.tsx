@@ -315,7 +315,7 @@ export const FormCard: React.FC = () => {
             try {
                 const localDataRaw = localStorage.getItem('master_dc_db'); 
                 if (!localDataRaw) {
-                    toast.error("Local Vault is empty.");
+                    toast.error("Master DC not found. Please upload your inventory file to sync locations.");
                     setIsFetchingLocations(false);
                     return;
                 }
@@ -389,7 +389,7 @@ export const FormCard: React.FC = () => {
                 setRequests(draft.items);
             } else {
                 localStorage.removeItem('allocation_draft');
-                console.log("Old draft expired and was cleared.");
+                toast.info("Old draft expired and was cleared.");
             }
         }
     }, []);
@@ -714,7 +714,7 @@ export const FormCard: React.FC = () => {
                         <div className="flex gap-2">
                             {/* Save as Draft Button */}
                             <Button 
-                                onClick={handleSaveDraft} // Make sure to define this function
+                                onClick={handleSaveDraft}
                                 disabled={isSubmitting || requests.length === 0} 
                                 variant="outline"
                                 className="border-gray-300 dark:border-slate-700 h-10 px-6 gap-2 uppercase font-bold text-xs shadow-sm cursor-pointer disabled:opacity-50"
