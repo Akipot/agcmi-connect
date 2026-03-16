@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { 
     Save, Trash2, ShoppingCart, Box, CircleAlert, 
     PackagePlus, FileUp, Keyboard, Loader2, 
-    UploadCloud, Filter, Search, X, Tag, Info, FileText
+    UploadCloud, Filter, Search, X, Tag, Info, FileText, RefreshCw
 } from "lucide-react";
 import axios from "axios";
 import { toast } from "sonner";
@@ -41,7 +41,8 @@ export const schema = z.object({
     locationCode: z.string().min(1, "Required"),
     qtyPcs: z.string().min(1, "Required"),
     qtyCase: z.string().min(1, "Required"),
-    qtyOnHand: z.string().min(1, "Required")
+    qtyOnHand: z.string().min(1, "Required"),
+    ohAfterAllocation: z.string(),
 });
 
 export type FormData = z.infer<typeof schema>;
@@ -57,7 +58,7 @@ export const FormCard: React.FC = () => {
         resolver: zodResolver(schema),
         defaultValues: { 
             storeCode: "", store: "", plu: "", itemDescp: "", 
-            locationCode: "", qtyPcs: "0", qtyCase: "0", qtyOnHand: "0" 
+            locationCode: "", qtyPcs: "0", qtyCase: "0", qtyOnHand: "0" , ohAfterAllocation: "-"
         },
     });
 
@@ -166,7 +167,8 @@ export const FormCard: React.FC = () => {
                     locationCode: "", 
                     qtyPcs: "0", 
                     qtyCase: "0", 
-                    qtyOnHand: "0" 
+                    qtyOnHand: "0" ,
+                    ohAfterAllocation: "-"
                 };
                 
                 let hasValidPlu = false;
@@ -452,6 +454,58 @@ export const FormCard: React.FC = () => {
         }
     };
 
+    /**--------------------------- Recalculate Stocks ------------------------- */
+    const [isRecalculating, setIsRecalculating] = useState(false);
+
+    const getCalculatedData = (dataToProcess: any[]) => {
+        const masterDataRaw = localStorage.getItem("master_dc_db");
+        if (!masterDataRaw) return dataToProcess;
+
+        const masterDBArray: any[] = JSON.parse(masterDataRaw);
+        const stockBalanceMap = new Map();
+        
+        masterDBArray.forEach(item => {
+            stockBalanceMap.set(String(item.SKU).trim(), Number(item["REAL OH"]) || 0);
+        });
+
+        const masterMap = new Map(masterDBArray.map(item => [String(item.SKU).trim(), item]));
+
+        const reversed = [...dataToProcess].reverse();
+        const processed = reversed.map(req => {
+            const skuKey = String(req.plu).trim();
+            const masterMatch = masterMap.get(skuKey);
+            let currentRunningBalance = stockBalanceMap.get(skuKey);
+
+            if (masterMatch && currentRunningBalance !== undefined) {
+                const c2 = Number(masterMatch["C2"]) || 0;
+                const allocation = Number(req.qtyCase) || 0;
+                const remaining = currentRunningBalance - (c2 * allocation);
+                stockBalanceMap.set(skuKey, remaining);
+                return { ...req, ohAfterAllocation: String(remaining) };
+            }
+            return req;
+        });
+
+        return processed.reverse();
+    };
+
+    const handleManualCalculate = () => {
+        setIsRecalculating(true);
+        setTimeout(() => {
+            const updated = getCalculatedData(requests);
+            setRequests(updated);
+            setIsRecalculating(false);
+            toast.success("Stock levels updated.");
+        }, 1000);
+    };
+
+    const handleDeleteRow = (indexToRemove: number) => {
+        const filtered = requests.filter((_, i) => i !== indexToRemove);
+        const recalculated = getCalculatedData(filtered);
+        setRequests(recalculated);
+        toast.success(`Item removed. Stocks recalculated.`);
+    };
+
     return (
         <div className="space-y-4 w-full max-w mx-auto p-2">
             {/* Header and Controls */}
@@ -615,6 +669,20 @@ export const FormCard: React.FC = () => {
                             {isFetchingLocations ? "Syncing..." : "Get PTL Locations"}
                         </Button>
 
+                        <Button 
+                            onClick={handleManualCalculate}
+                            variant="outline"
+                            className="h-8 px-3 text-[10px] font-bold gap-2 border-blue-200 text-blue-600 hover:bg-blue-50 dark:border-slate-800 dark:text-blue-400 uppercase flex items-center shadow-sm disabled:opacity-50 cursor-pointer"
+                            disabled={requests.length === 0 || isRecalculating}
+                        >
+                            {isRecalculating ? (
+                                <RefreshCw size={14} className="animate-spin" />
+                            ) : (
+                                <RefreshCw size={14} />
+                            )}
+                            {isRecalculating ? "Calculating..." : "Recalculate Stocks"}
+                        </Button>
+
                         {searchQuery && (
                             <span className="text-[10px] text-gray-400 italic">
                                 Showing {filteredRequests.length} of {requests.length}
@@ -632,6 +700,9 @@ export const FormCard: React.FC = () => {
                                     <th className="p-3 font-bold uppercase text-[10px] w-20">QTY (PCS)</th>
                                     <th className="p-3 font-bold uppercase text-[10px] w-20">QTY (ON HAND)</th>
                                     <th className="p-3 font-bold uppercase text-[10px] w-24">Allocation (Case)</th>
+                                    <th className="p-3 font-bold uppercase text-[10px] w-28 text-blue-600 bg-blue-50/50 dark:bg-blue-900/20">
+                                        Remaining DC OH
+                                    </th>
                                     <th className="p-3 text-right">Action</th>
                                 </tr>
                             </thead>
@@ -684,8 +755,17 @@ export const FormCard: React.FC = () => {
                                             <td className="p-2 dark:text-slate-300">
                                                 <EditableCell value={req.qtyCase} onChange={(v) => updateRequest(originalIndex, "qtyCase", v)} type="number" />
                                             </td>
+                                             <td className="p-2 dark:text-slate-300">
+                                                {/* <div className="font-bold text-orange-600">{req.ohAfterAllocation}</div> */}
+                                                <div className="font-bold text-blue-600">{req.ohAfterAllocation}</div>
+                                            </td>
                                             <td className="p-3 text-right">
-                                                <Button variant="ghost" size="sm" onClick={() => setRequests(prev => prev.filter(r => r !== req))} className="h-7 w-7 text-red-300 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer">
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="sm" 
+                                                    onClick={() => handleDeleteRow(originalIndex)} 
+                                                    className="h-7 w-7 text-red-300 hover:text-red-600 cursor-pointer"
+                                                >
                                                     <Trash2 size={14} />
                                                 </Button>
                                             </td>
