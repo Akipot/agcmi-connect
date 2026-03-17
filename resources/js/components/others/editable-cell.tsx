@@ -6,7 +6,8 @@ interface EditableCellProps {
     type?: "text" | "number";
     className?: string;
     placeholder?: string;
-    maxLength?: number; // Added maxLength prop
+    maxLength?: number;
+    readOnly?: boolean; // New optional prop
 }
 
 export const EditableCell: React.FC<EditableCellProps> = ({ 
@@ -15,30 +16,30 @@ export const EditableCell: React.FC<EditableCellProps> = ({
     type = "text",
     className = "",
     placeholder = "Double-click to edit",
-    maxLength // Default is undefined (no limit)
+    maxLength,
+    readOnly = false // Default to false
 }) => {
     const [isEditing, setIsEditing] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // Focus and highlight text on entry
     useEffect(() => {
         if (isEditing) {
             inputRef.current?.focus();
-            inputRef.current?.select(); // Highlights text for faster replacement
+            inputRef.current?.select();
         }
     }, [isEditing]);
 
-    if (isEditing) {
+    if (isEditing && !readOnly) {
         return (
             <input
                 ref={inputRef}
                 type="text"
                 value={value}
-                maxLength={maxLength} // Applied here
+                maxLength={maxLength}
                 onBlur={() => setIsEditing(false)}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter') setIsEditing(false);
-                    if (e.key === 'Escape') setIsEditing(false); // Common UX pattern
+                    if (e.key === 'Escape') setIsEditing(false);
                 }}
                 onChange={(e) => {
                     const val = e.target.value;
@@ -52,8 +53,13 @@ export const EditableCell: React.FC<EditableCellProps> = ({
 
     return (
         <div 
-            onDoubleClick={() => setIsEditing(true)}
-            className={`cursor-pointer min-h-[1.5rem] flex items-center transition-all hover:bg-gray-100 dark:hover:bg-slate-800 rounded px-1 ${className}`}
+            // Only allow editing if readOnly is false
+            onDoubleClick={() => !readOnly && setIsEditing(true)}
+            className={`min-h-[1.5rem] flex items-center transition-all rounded px-1 
+                ${readOnly 
+                    ? "cursor-default opacity-80" // Style for read-only
+                    : "cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-800" // Style for editable
+                } ${className}`}
         >
             {value ? (
                 value
