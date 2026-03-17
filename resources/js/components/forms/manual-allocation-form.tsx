@@ -6,9 +6,10 @@ import * as ExcelJS from "exceljs";
 import { Buffer } from "buffer";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { 
     Save, Trash2, ShoppingCart, Box, CircleAlert, 
-    PackagePlus, FileUp, Keyboard, Loader2, 
+    PackagePlus, FileUp, Keyboard, Loader2, AlertTriangle,
     UploadCloud, Filter, Search, X, Tag, Info, FileText, RefreshCw
 } from "lucide-react";
 import axios from "axios";
@@ -230,21 +231,26 @@ export const FormCard: React.FC = () => {
         } catch (error: any) {
             toast.error(error.message || "Upload Failed");
         } finally {
+            setIsCalculated(false);
             setLoading(false);
         }
     };
 
     const addToRequests = async () => {
         const isValid = await form.trigger();
+        
         if (!isValid) return;
+        
         const currentValues = form.getValues();
         const identifier = `${currentValues.storeCode}-${currentValues.plu}`;
+        
         if (requests.some(r => `${r.storeCode}-${r.plu}` === identifier)) {
             toast.error("Duplicate PLU found.");
             return;
         }
         setRequests(prev => [currentValues, ...prev]);
         form.reset({ ...currentValues, plu: "", itemDescp: "", qtyPcs: "0", qtyCase: "0" });
+        setIsCalculated(false);
         toast.success("Added to top.");
     };
 
@@ -348,7 +354,7 @@ export const FormCard: React.FC = () => {
                 setRequests(updatedRequests);
 
                     if (foundCount === 0) {
-                    toast.info("No matching SKUs found in Master DC.");
+                    toast.info("No results found in Master DC.");
                 } else {
                     toast.success("Locations synced successfully!");
                 }
@@ -410,6 +416,7 @@ export const FormCard: React.FC = () => {
 
     const handleFinalSubmit = async () => {
 
+
         const invalidItems = requests.filter(item => 
             !item.locationCode?.trim() || 
             !item.storeCode?.trim() || 
@@ -428,6 +435,12 @@ export const FormCard: React.FC = () => {
             toast.error(errorMsg.trim());
             return;
         }
+
+        if (!isCalculated) {
+            toast.error("Please re-calculate stock before generating the file.");
+            return;
+        }
+
 
         setIsSubmitting(true);
         try {
@@ -450,12 +463,13 @@ export const FormCard: React.FC = () => {
         } finally {
             setIsSubmitting(false);
             localStorage.removeItem('allocation_draft');
-            // window.location.reload();
+            window.location.reload();
         }
     };
 
     /**--------------------------- Recalculate Stocks ------------------------- */
     const [isRecalculating, setIsRecalculating] = useState(false);
+    const [isCalculated, setIsCalculated] = useState(false);
 
     const getCalculatedData = (dataToProcess: any[]) => {
         const masterDataRaw = localStorage.getItem("master_dc_db");
@@ -491,11 +505,12 @@ export const FormCard: React.FC = () => {
 
     const handleManualCalculate = () => {
         setIsRecalculating(true);
+        setIsCalculated(true);
         setTimeout(() => {
             const updated = getCalculatedData(requests);
             setRequests(updated);
             setIsRecalculating(false);
-            toast.success("Stock levels updated.");
+            toast.success("Calculations complete! You're ready to generate.");  
         }, 1000);
     };
 
@@ -503,7 +518,66 @@ export const FormCard: React.FC = () => {
         const filtered = requests.filter((_, i) => i !== indexToRemove);
         const recalculated = getCalculatedData(filtered);
         setRequests(recalculated);
+        setIsCalculated(checkIfFullyCalculated(recalculated));
         toast.success(`Item removed. Stocks recalculated.`);
+    };
+
+    const checkIfFullyCalculated = (data: any[]) => {
+        if (data.length === 0) return false;
+        
+        return data.every(item => 
+            item.qtyOnHand !== undefined && 
+            item.qtyOnHand !== null && 
+            item.qtyOnHand !== ""
+        );
+    };
+
+    /** ------------------------------ Check PLU and Description ------------------- */
+
+    const pluValue = form.watch("plu");
+
+    React.useEffect(() => {
+        if (!pluValue) {
+            form.setValue("itemDescp", "");
+            form.setValue("locationCode", "");
+            return;
+        }
+
+        const rawData = localStorage.getItem("master_dc_db");
+        if (rawData) {
+            try {
+                const db = JSON.parse(rawData);
+
+                const match = db.find((item: any) => String(item.SKU) === String(pluValue));
+                
+                if (match) {
+                    form.setValue("itemDescp", match.DESCRIPTION || "", { shouldDirty: true });
+                    form.setValue("locationCode", match.LOCATION || "N/A", { shouldDirty: true });
+                }
+            } catch (error) {
+                console.error("Lookup failed:", error);
+            }
+        }
+    }, [pluValue, form]);
+
+    /**--------------------------------- Removed Filtered Items with Recalculation --------------------------- */
+    const handleRemoveFiltered = () => {
+
+        const keysToRemove = new Set(
+            filteredRequests.map(item => `${item.plu}-${item.storeCode}`)
+        );
+
+        const remaining = requests.filter(
+            item => !keysToRemove.has(`${item.plu}-${item.storeCode}`)
+        );
+
+        const recalculated = getCalculatedData(remaining);
+        setRequests(recalculated);
+        setSearchQuery(""); 
+
+        setIsCalculated(checkIfFullyCalculated(recalculated));
+
+        toast.success(`Removed ${filteredRequests.length} filtered items. Stocks recalculated.`);
     };
 
     return (
@@ -547,7 +621,7 @@ export const FormCard: React.FC = () => {
                                     <Button 
                                         type="button" 
                                         variant="outline"
-                                        onClick={() => form.reset({ ...form.getValues(), store: "", storeCode: "", plu: "", itemDescp: "", qtyPcs: "0", qtyCase: "0", qtyOnHand: "0" })}
+                                        onClick={() => form.reset({ ...form.getValues(), store: "", storeCode: "", plu: "", locationCode: "", itemDescp: "", qtyPcs: "0", qtyCase: "0", qtyOnHand: "0" })}
                                         className="h-8 text-xs font-bold border-gray-300 dark:border-slate-700 hover:bg-gray-100 dark:hover:bg-slate-800 cursor-pointer"
                                     >
                                         Clear Fields
@@ -631,64 +705,79 @@ export const FormCard: React.FC = () => {
                     </div>
 
                     <div className="p-2 border-b dark:border-slate-800 bg-white dark:bg-slate-950 flex items-center gap-2">
-                        {/* Search Input Container */}
-                        <div className="relative flex-1 max-w-sm">
-                            <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
-                                <Filter size={14} className="text-gray-400 dark:text-slate-500" />
-                            </div>
-                            <input
-                                type="text"
-                                placeholder="Filter by Store, PLU, or Description..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="block w-full h-8 pl-9 pr-3 text-[12px] border border-gray-200 dark:border-slate-800 rounded-md bg-gray-50/50 dark:bg-slate-900/50 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-blue-400 outline-none"
-                            />
-                            {searchQuery && (
-                                <button 
-                                    onClick={() => setSearchQuery("")} 
-                                    className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600"
-                                >
-                                    <X size={12} />
-                                </button>
-                            )}
-                        </div>
+    {/* Search Input Container */}
+    <div className="relative flex-1 max-w-sm">
+        <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+            <Filter size={14} className="text-gray-400 dark:text-slate-500" />
+        </div>
+        <input
+            type="text"
+            placeholder="Filter by Store, PLU, or Description..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="block w-full h-8 pl-9 pr-3 text-[12px] border border-gray-200 dark:border-slate-800 rounded-md bg-gray-50/50 dark:bg-slate-900/50 dark:text-slate-200 focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-blue-400 outline-none"
+        />
+        {searchQuery && (
+            <button 
+                onClick={() => setSearchQuery("")} 
+                className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600 cursor-pointer"
+            >
+                <X size={12} />
+            </button>
+        )}
+    </div>
 
-                        {/* Get Locations Button */}
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleGetLocations}
-                            disabled={isFetchingLocations || requests.length === 0}
-                            className="h-8 px-3 text-[10px] font-bold gap-2 border-blue-200 text-blue-600 hover:bg-blue-50 dark:border-slate-800 dark:text-blue-400 uppercase flex items-center shadow-sm disabled:opacity-50 cursor-pointer"
-                        >
-                            {isFetchingLocations ? (
-                                <div className="h-3 w-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                                <Tag size={14} />
-                            )}
-                            {isFetchingLocations ? "Syncing..." : "Get PTL Locations"}
-                        </Button>
+    {/* Remove Filtered Items Button (Only shows when searching) */}
+    {searchQuery && filteredRequests.length > 0 && (
+        <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleRemoveFiltered}
+            className={cn(
+                "h-8 px-3 text-[10px] font-bold gap-2 uppercase flex items-center shadow-sm",
+                "animate-in fade-in zoom-in duration-200 cursor-pointer",
+                "hover:bg-red-700 hover:scale-105 hover:shadow-md transition-all duration-200",
+                "active:scale-95"
+            )}
+        >
+            <Trash2 size={14} className="transition-transform group-hover:rotate-12" />
+            Remove Filtered ({filteredRequests.length})
+        </Button>
+    )}
 
-                        <Button 
-                            onClick={handleManualCalculate}
-                            variant="outline"
-                            className="h-8 px-3 text-[10px] font-bold gap-2 border-blue-200 text-blue-600 hover:bg-blue-50 dark:border-slate-800 dark:text-blue-400 uppercase flex items-center shadow-sm disabled:opacity-50 cursor-pointer"
-                            disabled={requests.length === 0 || isRecalculating}
-                        >
-                            {isRecalculating ? (
-                                <RefreshCw size={14} className="animate-spin" />
-                            ) : (
-                                <RefreshCw size={14} />
-                            )}
-                            {isRecalculating ? "Calculating..." : "Recalculate Stocks"}
-                        </Button>
+    {/* Get Locations Button */}
+    <Button
+        variant="outline"
+        size="sm"
+        onClick={handleGetLocations}
+        disabled={isFetchingLocations || requests.length === 0}
+        className="h-8 px-3 text-[10px] font-bold gap-2 border-blue-200 text-blue-600 hover:bg-blue-50 dark:border-slate-800 dark:text-blue-400 uppercase flex items-center shadow-sm disabled:opacity-50 cursor-pointer"
+    >
+        {isFetchingLocations ? (
+            <div className="h-3 w-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        ) : (
+            <Tag size={14} />
+        )}
+        {isFetchingLocations ? "Syncing..." : "Get PTL Locations"}
+    </Button>
 
-                        {searchQuery && (
-                            <span className="text-[10px] text-gray-400 italic">
-                                Showing {filteredRequests.length} of {requests.length}
-                            </span>
-                        )}
-                    </div>
+    {/* Recalculate Button */}
+    <Button 
+        onClick={handleManualCalculate}
+        variant="outline"
+        className="h-8 px-3 text-[10px] font-bold gap-2 border-yellow-200 text-yellow-600 hover:bg-yellow-50 dark:border-slate-800 dark:text-yellow-400 uppercase flex items-center shadow-sm disabled:opacity-50 cursor-pointer"
+        disabled={requests.length === 0 || isRecalculating}
+    >
+        <RefreshCw size={14} className={cn(isRecalculating && "animate-spin")} />
+        {isRecalculating ? "Calculating..." : "Recalculate Stocks"}
+    </Button>
+
+    {searchQuery && (
+        <span className="text-[10px] text-gray-400 italic whitespace-nowrap">
+            Showing {filteredRequests.length} of {requests.length}
+        </span>
+    )}
+</div>
 
                     <div className="overflow-auto max-h-[500px] scrollbar">
                         <table className="w-full text-[12px]">
@@ -791,25 +880,40 @@ export const FormCard: React.FC = () => {
                             <CircleAlert size={12}/> Verify entries before generating file.
                         </span>
                         
-                        <div className="flex gap-2">
-                            {/* Save as Draft Button */}
-                            <Button 
-                                onClick={handleSaveDraft}
-                                disabled={isSubmitting || requests.length === 0} 
-                                variant="outline"
-                                className="border-gray-300 dark:border-slate-700 h-10 px-6 gap-2 uppercase font-bold text-xs shadow-sm cursor-pointer disabled:opacity-50"
-                            >
-                                {isDraftSaving ? "Saving..." : "Save as Draft"} <FileText size={16} />
-                            </Button>
+                        <div className="flex flex-col items-end gap-2">
+                            {/* Dynamic Alert Message */}
+                            {!isCalculated && requests.length > 0 && (
+                                <p className="text-[10px] text-orange-600 dark:text-orange-400 font-bold animate-pulse flex items-center gap-1 uppercase italic">
+                                    <Info size={10} /> Pending Calculation: Please re-calculate stock before generating.
+                                </p>
+                            )}
 
-                            {/* Generate Button */}
-                            <Button 
-                                onClick={handleFinalSubmit} 
-                                disabled={isSubmitting || requests.length === 0} 
-                                className="bg-green-600 hover:bg-green-700 h-10 px-10 gap-2 uppercase font-bold text-xs shadow-md cursor-pointer disabled:opacity-50"
-                            >
-                                {isSubmitting ? "Processing..." : "Generate Allocation"} <Save size={16} />
-                            </Button>
+                            <div className="flex gap-2">
+                                {/* Save as Draft Button */}
+                                <Button 
+                                    onClick={handleSaveDraft}
+                                    disabled={isSubmitting || requests.length === 0} 
+                                    variant="outline"
+                                    className="border-gray-300 dark:border-slate-700 h-10 px-6 gap-2 uppercase font-bold text-xs shadow-sm cursor-pointer disabled:opacity-50"
+                                >
+                                    {isDraftSaving ? "Saving..." : "Save as Draft"} <FileText size={16} />
+                                </Button>
+
+                                {/* Generate Button with Calculation Focus */}
+                                <Button 
+                                    onClick={handleFinalSubmit} 
+                                    disabled={isSubmitting || requests.length === 0} 
+                                    className={cn(
+                                        "h-10 px-10 gap-2 uppercase font-bold text-xs shadow-md cursor-pointer transition-all duration-300",
+                                        isCalculated 
+                                            ? "bg-green-600 hover:bg-green-700 text-white" 
+                                            : "bg-slate-200 dark:bg-slate-800 text-slate-400 border border-slate-300 dark:border-slate-700 hover:bg-slate-300 dark:hover:bg-slate-700"
+                                    )}
+                                >
+                                    {isSubmitting ? "Processing..." : "Generate Allocation"} 
+                                    {isCalculated ? <Save size={16} /> : <AlertTriangle size={16} className="text-orange-500" />}
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </Card>

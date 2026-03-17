@@ -25,7 +25,7 @@ export const MasterDCUpload = () => {
 
     const finalHeaders = [
         "VENDOR_CODE", "VENDOR_NAME", "BARCODE", "SKU", "DESCRIPTION", "LOCATION",
-        "C2", "BUY PRICE", "TAG", "REAL OH", "OH PICK"
+        "C2", "BUY PRICE", "TAG", "TAIL1", "REAL OH", "OH PICK"
     ];
 
     const clearStorage = () => {
@@ -47,22 +47,30 @@ export const MasterDCUpload = () => {
         const savedData = localStorage.getItem('master_dc_db');
         const savedName = localStorage.getItem('master_dc');
         const expiryDateStr = localStorage.getItem('master_dc_expiry');
-        const today = new Date().toISOString().split('T')[0];
 
-        if (savedData) {
-            if (expiryDateStr !== today) {
+        if (savedData && expiryDateStr) {
+            const now = new Date();
+            const expiryDate = new Date(expiryDateStr);
+
+            const todayAtMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+            const expiryAtMidnight = new Date(expiryDate.getFullYear(), expiryDate.getMonth(), expiryDate.getDate()).getTime();
+
+            if (todayAtMidnight > expiryAtMidnight) {
                 clearStorage();
                 toast.info("Master DC expired. Please upload latest Master DC.");
             } else {
                 try {
                     setTableData(JSON.parse(savedData));
                     setFileName(savedName || "Cached Database");
-                } catch (e) { 
-                    console.error("Cache corrupted"); 
+                } catch (e) {
+                    console.error("Cache corrupted");
                     clearStorage();
                 }
             }
         }
+        return () => {
+            document.body.removeChild(script);
+        };
     }, []);
 
     const filteredData = useMemo(() => {
@@ -207,7 +215,7 @@ export const MasterDCUpload = () => {
                                     <UploadCloud size={24} className={`${error ? 'text-red-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-blue-500'}`} />
                                 </div>
                                 <p className={`text-[13px] font-medium tracking-tight ${error ? 'text-red-500' : 'text-slate-500 dark:text-slate-400'}`}>
-                                    {error ? "Format Rejected - Please use .xlsx" : "Drop your .xlsx file here"}
+                                    {error ? "Invalid File" : "Drop your .xlsx file here"}
                                 </p>
                                 <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 italic">Note: .xls and .csv are not supported.</p>
                             </div>
@@ -224,6 +232,7 @@ export const MasterDCUpload = () => {
                         <div className="p-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500 flex-1 border-r border-zinc-200 dark:border-zinc-800 text-center">Location</div>
                         <div className="p-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500 flex-1 border-r border-zinc-200 dark:border-zinc-800 text-center">C2</div>
                         <div className="p-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500 flex-1 border-r border-zinc-200 dark:border-zinc-800 text-center">Buy Price</div>
+                        <div className="p-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500 flex-1 border-r border-zinc-200 dark:border-zinc-800 text-center">Tail1</div>
                         <div className="p-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500 flex-1 border-r border-zinc-200 dark:border-zinc-800 text-center">Tag</div>
                         <div className="p-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500 flex-1 border-r border-zinc-200 dark:border-zinc-800 text-center">Real OH</div>
                         <div className="p-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500 flex-1 text-center">OH Pick</div>
@@ -265,6 +274,9 @@ export const MasterDCUpload = () => {
                                     </div>
                                     <div className="flex-1 text-center text-[11px] text-zinc-600 dark:text-zinc-400 border-r border-zinc-50 dark:border-zinc-900/50">
                                         {row["BUY PRICE"]}
+                                    </div>
+                                    <div className="flex-1 text-center text-[11px] text-zinc-600 dark:text-zinc-400 border-r border-zinc-50 dark:border-zinc-900/50">
+                                        {row["TAIL1"]}
                                     </div>
                                     <div className="flex-1 text-center text-[11px] text-zinc-600 dark:text-zinc-400 border-r border-zinc-50 dark:border-zinc-900/50">
                                         {row["TAG"]}

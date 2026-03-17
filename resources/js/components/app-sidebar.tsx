@@ -28,14 +28,14 @@ const mainNavItems: NavItem[] = [
 
 ];
 
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Settings',
-        href: '',
-        icon: Settings2,
-    },
+// const footerNavItems: NavItem[] = [
+//     {
+//         title: 'Settings',
+//         href: '',
+//         icon: Settings2,
+//     },
 
-];
+// ];
 
 export function AppSidebar() {
     return (
@@ -56,10 +56,10 @@ export function AppSidebar() {
                 <NavMain items={mainNavItems} />
             </SidebarContent>
 
-            <SidebarFooter>
+            {/* <SidebarFooter>
                 <NavFooter items={footerNavItems} className="mt-auto" />
-                {/* <NavUser /> */}
-            </SidebarFooter>
+                <NavUser />
+            </SidebarFooter> */}
         </Sidebar>
     );
 }

@@ -7,6 +7,7 @@ import {
     FormControl,
     FormMessage,
 } from "@/components/ui/form";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { FormData } from "@/components/forms/manual-allocation-form";
 
@@ -17,6 +18,7 @@ interface TextFieldProps {
     isNumber?: boolean;
     maxLength?: number;
     placeholder?: string;
+    readOnly?: boolean; // Added readOnly prop
 }
 
 export const TextField: React.FC<TextFieldProps> = ({ 
@@ -25,7 +27,8 @@ export const TextField: React.FC<TextFieldProps> = ({
     label, 
     isNumber = false,
     maxLength,
-    placeholder
+    placeholder,
+    readOnly = false // Default to false
 }) => (
     <FormField 
         control={form.control} 
@@ -38,9 +41,16 @@ export const TextField: React.FC<TextFieldProps> = ({
                 <FormControl>
                     <Input 
                         {...field} 
+                        readOnly={readOnly} // Pass to native input
                         placeholder={placeholder}
-                        className="uppercase h-8 text-xs shadow-none border-gray-300 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-200 focus:border-orange-500 dark:focus:border-orange-500 transition-colors" 
+                        className={cn(
+                            "uppercase h-8 text-xs shadow-none border-gray-300 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-200 focus:border-orange-500 dark:focus:border-orange-500 transition-colors",
+                            readOnly && "bg-gray-100 cursor-not-allowed opacity-75" // Visual feedback for read-only
+                        )} 
                         onChange={(e) => {
+                            // If readOnly is true, we prevent typing changes
+                            if (readOnly) return;
+
                             const val = e.target.value;
                             
                             if (maxLength && val.length > maxLength) return;
