@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -34,6 +34,10 @@ if (typeof window !== "undefined") {
     window.Buffer = window.Buffer || Buffer;
 }
 
+interface FormCardProps {
+    onDirtyChange: (isDirty: boolean) => void;
+}
+
 export const schema = z.object({
     storeCode: z.string().min(1, "Required"),
     store: z.string().min(1, "Required"),
@@ -48,7 +52,7 @@ export const schema = z.object({
 
 export type FormData = z.infer<typeof schema>;
 
-export const FormCard: React.FC = () => {
+export const FormCard: React.FC<FormCardProps> = ({ onDirtyChange }) => {
     const [mode, setMode] = useState<"form" | "upload">("form");
     const [requests, setRequests] = useState<FormData[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -148,15 +152,9 @@ export const FormCard: React.FC = () => {
                 else if (rawHeader === "LOCATION") {
                     excelHeaderMap[colNumber] = "locationCode";
                 }
-                // else if (rawHeader === "OH_GS" || rawHeader.includes("ON HAND")) {
-                //     excelHeaderMap[colNumber] = "qtyOnHand";
-                // } 
                 else if (rawHeader === "PER CASE" || rawHeader.includes("QTY CASE") || rawHeader.includes("ALLOCATION")) {
                     excelHeaderMap[colNumber] = "qtyRequest";
                 } 
-                // else if (rawHeader.includes("QTY PCS") || rawHeader.includes("QTY (PCS)")) {
-                //     excelHeaderMap[colNumber] = "qtyPcs";
-                // }
             });
 
             const importedItems: FormData[] = [];
@@ -190,18 +188,15 @@ export const FormCard: React.FC = () => {
 
                     let finalVal = (cellVal ?? "").toString().trim();
 
-                    // Stop processing if we hit footer text
                     if (finalVal.toUpperCase().startsWith("REASON") || finalVal.toUpperCase().includes("PREPARED")) {
                         isEndOfTable = true;
                         return;
                     }
 
-                    // VALIDATION: Store Code must be numeric
                     if (mappedKey === "storeCode") {
                         finalVal = finalVal.replace(/\D/g, "");
                     }
 
-                    // Numeric formatting for quantities
                     if (["qtyRequest"].includes(mappedKey)) {
                         const num = parseFloat(finalVal);
                         finalVal = isNaN(num) ? "1" : Math.round(num).toString();
@@ -256,7 +251,10 @@ export const FormCard: React.FC = () => {
         form.reset({ ...
             currentValues, 
             plu: "", 
-            itemDescp: "", 
+            itemDescp: "",
+            locationCode: "",
+            tail1: "",
+            c2: "",
             qtyRequest: "1",
          });
         setIsCalculated(false);
@@ -403,9 +401,9 @@ export const FormCard: React.FC = () => {
                     if (item.SKU) {
                         const cleanSku = String(item.SKU).trim();
                         itemMap[cleanSku] = {
-                            loc: item.LOCATION || "",
-                            tail: item.TAIL1 || "",
-                            c2: item.C2 || ""
+                            loc: item.LOCATION || "No Location",
+                            tail: item.TAIL1 || "No TAIL1",
+                            c2: item.C2 || "No C2"
                         };
                     }
                 });
@@ -446,11 +444,14 @@ export const FormCard: React.FC = () => {
         }, 400);
     };
 
+
     /** -------------------------------------------- Save as Draft --------------------------------------- */
     const [isDraftSaving, setIsDraftSaving] = useState(false);
-
+    const lastSavedRef = useRef(""); 
+    
     const handleSaveDraft = () => {
         setIsDraftSaving(true);
+        const currentDataString = JSON.stringify(requests); 
         
         const draftData = {
             items: requests,
@@ -458,24 +459,35 @@ export const FormCard: React.FC = () => {
         };
 
         localStorage.setItem('allocation_draft', JSON.stringify(draftData));
-        
+        lastSavedRef.current = currentDataString;
+        onDirtyChange(false);
+
         setTimeout(() => setIsDraftSaving(false), 500);
-        toast.success("Draft saved! It will be available until midnight.");
+        toast.success("Draft saved!");
     };
 
+    /** -------------------------------------------- Change Watcher --------------------------------------- */
+    useEffect(() => {
+        const currentFingerprint = JSON.stringify(requests);
+        const hasUnsavedChanges = requests.length > 0 && currentFingerprint !== lastSavedRef.current;
+        
+        onDirtyChange(hasUnsavedChanges);
+    }, [requests, onDirtyChange]);
+    
     /**------------------------------------------------ Load Draft ------------------------------------------ */
     useEffect(() => {
         const rawData = localStorage.getItem('allocation_draft');
-        
         if (rawData) {
             const draft = JSON.parse(rawData);
             const today = new Date().toISOString().split('T')[0];
 
             if (draft.savedDate === today) {
                 setRequests(draft.items);
+                lastSavedRef.current = JSON.stringify(draft.items);
+                onDirtyChange(false);
             } else {
                 localStorage.removeItem('allocation_draft');
-                toast.info("Old draft expired and was cleared.");
+                toast.info("Old draft expired.");
             }
         }
     }, []);
@@ -487,6 +499,9 @@ export const FormCard: React.FC = () => {
         setRequests([]);
         setSearchQuery("");
         localStorage.removeItem('allocation_draft');
+        // Clear Ref so an empty table isn't considered "unsaved"
+        lastSavedRef.current = ""; 
+        onDirtyChange(false);
         setIsClearOpen(false);
     };
 
@@ -534,6 +549,9 @@ export const FormCard: React.FC = () => {
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link); 
+            lastSavedRef.current = ""; 
+            onDirtyChange(false);
+            setRequests([]);
             toast.success("Excel generated successfully!");
         } catch (error) {
             console.error("Export error:", error);
@@ -541,7 +559,6 @@ export const FormCard: React.FC = () => {
         } finally {
             setIsSubmitting(false);
             localStorage.removeItem('allocation_draft');
-            window.location.reload();
         }
     };
 
@@ -610,37 +627,50 @@ export const FormCard: React.FC = () => {
         );
     };
 
-    /** ------------------------------ Check PLU and Description ------------------- */
+    /** ------------------------------ Check PLU details ------------------- */
+    const handlePluKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter") {
+            e.preventDefault(); // Stop form submission
+            
+            const pluValue = form.getValues("plu");
 
-    const pluValue = form.watch("plu");
+            if (!pluValue) {
+                form.setValue("itemDescp", "");
+                form.setValue("locationCode", "");
+                form.setValue("tail1", "");
+                form.setValue("c2", "");
+                return;
+            }
 
-    React.useEffect(() => {
-        if (!pluValue) {
-            form.setValue("itemDescp", "");
-            form.setValue("locationCode", "");
-            form.setValue("tail1", "");
-            form.setValue("c2", "");
-            return;
-        }
-
-        const rawData = localStorage.getItem("master_dc_db");
-        if (rawData) {
-            try {
-                const db = JSON.parse(rawData);
-
-                const match = db.find((item: any) => String(item.SKU) === String(pluValue));
-                
-                if (match) {
-                    form.setValue("itemDescp", match.DESCRIPTION || "", { shouldDirty: true });
-                    form.setValue("locationCode", match.LOCATION || "N/A", { shouldDirty: true });
-                    form.setValue("tail1", match.TAIL1 || "N/A", { shouldDirty: true });
-                    form.setValue("c2", match.C2 || "N/A", { shouldDirty: true });
+            const rawData = localStorage.getItem("master_dc_db");
+            if (rawData) {
+                try {
+                    const db = JSON.parse(rawData);
+                    const match = db.find((item: any) => String(item.SKU) === String(pluValue));
+                    
+                    if (match) {
+                        form.setValue("itemDescp", match.DESCRIPTION || "", { shouldDirty: true });
+                        form.setValue("locationCode", match.LOCATION || "No Location", { shouldDirty: true });
+                        form.setValue("tail1", match.TAIL1 || "No Tail1", { shouldDirty: true });
+                        form.setValue("c2", match.C2 || "No C2", { shouldDirty: true });
+                    } else {
+                        // Optional: Clear or alert if not found
+                        form.setError("plu", { message: "SKU not found" });
+                    }
+                } catch (error) {
+                    console.error("Lookup failed:", error);
                 }
-            } catch (error) {
-                console.error("Lookup failed:", error);
             }
         }
-    }, [pluValue, form]);
+    };
+
+    const clearDetails = () => {
+        form.setValue("itemDescp", "");
+        form.setValue("locationCode", "");
+        form.setValue("tail1", "");
+        form.setValue("c2", "");
+        form.clearErrors("plu"); // Good practice to clear the "not found" error too
+    };
 
     /**--------------------------------- Removed Filtered Items with Recalculation --------------------------- */
     const handleRemoveFiltered = () => {
@@ -661,6 +691,8 @@ export const FormCard: React.FC = () => {
 
         toast.success(`Removed ${filteredRequests.length} filtered items. Stocks recalculated.`);
     };
+
+    
 
     return (
         <div className="space-y-4 w-full max-w mx-auto p-2">
@@ -692,9 +724,9 @@ export const FormCard: React.FC = () => {
                                 </div>
                                 <SectionTitle title="Item Details" />
                                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                                    <TextField form={form} name="plu" label="PLU" isNumber/>
-                                    <TextField form={form} name="itemDescp" label="Description" />
-                                    <TextField form={form} name="locationCode" label="Location Code" />
+                                    <TextField form={form} name="plu" label="PLU" onKeyDown={handlePluKeyDown}onChange={clearDetails} description="Press Enter to auto-fill details" isNumber/>
+                                    <TextField form={form} name="itemDescp" label="Description" readOnly/>
+                                    <TextField form={form} name="locationCode" label="Location Code" readOnly/>
                                     <TextField form={form} name="tail1" label="Tail1" readOnly/>
                                     <TextField form={form} name="c2" label="C2" readOnly/>
                                     <TextField form={form} name="qtyRequest" label="Quantity" isNumber/>
@@ -703,7 +735,7 @@ export const FormCard: React.FC = () => {
                                     <Button 
                                         type="button" 
                                         variant="outline"
-                                        onClick={() => form.reset({ ...form.getValues(), store: "", storeCode: "", plu: "", locationCode: "", itemDescp: "", qtyRequest: "1" })}
+                                        onClick={() => form.reset({ ...form.getValues(), store: "", storeCode: "", plu: "", locationCode: "", itemDescp: "", qtyRequest: "1", tail1: "", c2: ""})}
                                         className="h-8 text-xs font-bold border-gray-300 dark:border-slate-700 hover:bg-gray-100 dark:hover:bg-slate-800 cursor-pointer"
                                     >
                                         Clear Fields
@@ -893,13 +925,12 @@ export const FormCard: React.FC = () => {
                                     return (
                                         <tr 
                                             key={`row-${originalIndex}-${req.plu}`} 
-                                            className={`transition-colors border-l-[4px] ${
+                                            className={cn(
+                                                "transition-colors border-l-[4px]",
                                                 isInvalid 
                                                     ? "border-l-red-500 bg-red-50/20 dark:bg-red-900/10 hover:bg-red-50/40" 
-                                                    : isOutOfStock 
-                                                        ? "border-l-red-600 bg-red-100/80 dark:bg-red-900/40 hover:bg-red-200/80" 
-                                                        : "border-l-transparent hover:bg-blue-50/30 dark:hover:bg-blue-900/10"
-                                            }`}
+                                                    : "border-l-transparent hover:bg-blue-50/30 dark:hover:bg-blue-900/10"
+                                            )}
                                         >
                                             <td className="p-3">
                                                 <div className="flex flex-col gap-0.5">

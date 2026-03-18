@@ -6,6 +6,7 @@ import {
     Filter, X, AlertCircle, Info 
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { isMasterDataExpired, clearMasterStorage, STORAGE_KEYS } from '@/lib/storage';
 
 declare global {
     interface Window { XLSX: any; }
@@ -38,39 +39,45 @@ export const MasterDCUpload = () => {
     };
 
     useEffect(() => {
-        const script = document.createElement('script');
+    // 1. Handle Script Loading
+    const SCRIPT_ID = 'sheetjs-script';
+    let script = document.getElementById(SCRIPT_ID) as HTMLScriptElement;
+
+    if (!script) {
+        script = document.createElement('script');
+        script.id = SCRIPT_ID;
         script.src = "https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js";
         script.async = true;
         script.onload = () => setLibLoaded(true);
         document.body.appendChild(script);
+    } else {
+        setLibLoaded(true); // Already exists in DOM
+    }
 
-        const savedData = localStorage.getItem('master_dc_db');
-        const savedName = localStorage.getItem('master_dc');
-        const expiryDateStr = localStorage.getItem('master_dc_expiry');
+    // 2. Handle Data & Expiration
+    const savedData = localStorage.getItem(STORAGE_KEYS.DB);
+    const savedName = localStorage.getItem(STORAGE_KEYS.NAME);
 
-        if (savedData && expiryDateStr) {
-            const now = new Date();
-            const expiryDate = new Date(expiryDateStr);
-
-            const todayAtMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-            const expiryAtMidnight = new Date(expiryDate.getFullYear(), expiryDate.getMonth(), expiryDate.getDate()).getTime();
-
-            if (todayAtMidnight > expiryAtMidnight) {
-                clearStorage();
-                toast.info("Master DC expired. Please upload latest Master DC.");
-            } else {
-                try {
-                    setTableData(JSON.parse(savedData));
-                    setFileName(savedName || "Cached Database");
-                } catch (e) {
-                    console.error("Cache corrupted");
-                    clearStorage();
-                }
-            }
+    if (savedData) {
+        if (isMasterDataExpired()) {
+        clearMasterStorage();
+        toast.info("Master DC expired. Please upload latest Master DC.");
+        } else {
+        try {
+            setTableData(JSON.parse(savedData));
+            setFileName(savedName || "Cached Database");
+        } catch (e) {
+            console.error("Cache corrupted:", e);
+            clearMasterStorage();
         }
-        return () => {
-            document.body.removeChild(script);
-        };
+        }
+    }
+
+    // Cleanup: Only remove if you truly want the lib gone when navigating away
+    // Usually, keeping it loaded is better for performance.
+    return () => {
+        // Optional: document.body.removeChild(script);
+    };
     }, []);
 
     const filteredData = useMemo(() => {

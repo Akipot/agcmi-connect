@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { WebUrl } from '@/components/others/weburl';
 import { FormCard, type FormData } from "@/components/forms/manual-allocation-form";
+import { isMasterDataExpired, clearMasterStorage, STORAGE_KEYS } from '@/lib/storage';
 
 const breadcrumbs: BreadcrumbItemType[] = [
     {
@@ -21,15 +22,26 @@ const breadcrumbs: BreadcrumbItemType[] = [
     },
 ];
 
+
 export default function MASForm() {
     const [loading, setLoading] = useState(true);
     
     const [hasDatabase, setHasDatabase] = useState(false);
 
-    useEffect(() => {
+    useEffect(() => {    
+        const savedData = localStorage.getItem(STORAGE_KEYS.DB);
         
-        const db = localStorage.getItem('master_dc_db');
-        setHasDatabase(!!db);
+        if (savedData) {
+            if (isMasterDataExpired()) {
+                clearMasterStorage();
+                setHasDatabase(false);
+                toast.info("Master DC expired. Please upload latest Master DC.");
+            } else {
+                setHasDatabase(true);
+            }
+        } else {
+            setHasDatabase(false);
+        }
 
         if (loading) {
             const timer = setTimeout(() => {
@@ -38,6 +50,33 @@ export default function MASForm() {
             return () => clearTimeout(timer);
         }
     }, [loading]);
+
+    /** ----------------------------------- Check form changes ------------------- */
+    const [isDirty, setIsDirty] = useState(false);
+
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (isDirty) {
+                e.preventDefault();
+                e.returnValue = ''; 
+            }
+        };
+
+        const removeInertiaListener = router.on('before', (event) => {
+            const isPrefetch = event.detail.visit.prefetch;
+            if (isDirty && !isPrefetch) {
+                if (!confirm("Unsaved staged items will be lost. Leave anyway?")) {
+                    event.preventDefault();
+                }
+            }
+        });
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            removeInertiaListener();
+        };
+    }, [isDirty]);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -74,7 +113,7 @@ export default function MASForm() {
 
                     {/* 3. Conditional Rendering: Form vs Onboarding State */}
                     {hasDatabase ? (
-                        <FormCard />
+                        <FormCard onDirtyChange={setIsDirty} />
                     ) : (
                         <div className="mx-auto max-w-2xl mt-10">
                             <div className="relative overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#09090b] p-8 md:p-12 shadow-sm">

@@ -21,7 +21,7 @@ import {
     TrendingDown,
     Minus
 } from 'lucide-react';
-import { MasterDCUpload } from "@/components/others/master-dc-upload";
+import { MasterDCUpload } from "@/components/forms/master-dc-upload";
 
 const breadcrumbs: BreadcrumbItemType[] = [
     {

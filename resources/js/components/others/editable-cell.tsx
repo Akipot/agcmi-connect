@@ -7,7 +7,7 @@ interface EditableCellProps {
     className?: string;
     placeholder?: string;
     maxLength?: number;
-    readOnly?: boolean; // New optional prop
+    readOnly?: boolean;
 }
 
 export const EditableCell: React.FC<EditableCellProps> = ({ 
@@ -15,9 +15,9 @@ export const EditableCell: React.FC<EditableCellProps> = ({
     onChange, 
     type = "text",
     className = "",
-    placeholder = "Double-click to edit",
+    placeholder = "-----",
     maxLength,
-    readOnly = false // Default to false
+    readOnly = false
 }) => {
     const [isEditing, setIsEditing] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -53,18 +53,17 @@ export const EditableCell: React.FC<EditableCellProps> = ({
 
     return (
         <div 
-            // Only allow editing if readOnly is false
             onDoubleClick={() => !readOnly && setIsEditing(true)}
             className={`min-h-[1.5rem] flex items-center transition-all rounded px-1 
                 ${readOnly 
-                    ? "cursor-default opacity-80" // Style for read-only
-                    : "cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-800" // Style for editable
+                    ? "cursor-default opacity-80"
+                    : "cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-800"
                 } ${className}`}
         >
             {value ? (
                 value
             ) : (
-                <span className="text-amber-500 text-[10px] italic animate-pulse">
+                <span className="text-red-500 text-xs text-bold">
                     {placeholder}
                 </span>
             )}

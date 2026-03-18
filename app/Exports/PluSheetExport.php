@@ -67,7 +67,7 @@ class PluSheetExport implements FromView, WithTitle, ShouldAutoSize, WithStyles,
             
             'B2:B3' => ['font' => ['bold' => true, 'color' => ['rgb' => '1F4E78']]],
 
-            8 => [
+            7 => [
                 'font' => ['bold' => true],
                 'alignment' => ['horizontal' => 'center', 'vertical' => 'center'],
                 'fill' => [
@@ -76,7 +76,7 @@ class PluSheetExport implements FromView, WithTitle, ShouldAutoSize, WithStyles,
                 ]
             ],
 
-            'A8:H' . $lastRow => [
+            'A7:I' . $lastRow => [
                 'borders' => [
                     'allBorders' => [
                         'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
