@@ -39,45 +39,41 @@ export const MasterDCUpload = () => {
     };
 
     useEffect(() => {
-    // 1. Handle Script Loading
-    const SCRIPT_ID = 'sheetjs-script';
-    let script = document.getElementById(SCRIPT_ID) as HTMLScriptElement;
+        const SCRIPT_ID = 'sheetjs-script';
+        let script = document.getElementById(SCRIPT_ID) as HTMLScriptElement;
 
-    if (!script) {
-        script = document.createElement('script');
-        script.id = SCRIPT_ID;
-        script.src = "https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js";
-        script.async = true;
-        script.onload = () => setLibLoaded(true);
-        document.body.appendChild(script);
-    } else {
-        setLibLoaded(true); // Already exists in DOM
-    }
-
-    // 2. Handle Data & Expiration
-    const savedData = localStorage.getItem(STORAGE_KEYS.DB);
-    const savedName = localStorage.getItem(STORAGE_KEYS.NAME);
-
-    if (savedData) {
-        if (isMasterDataExpired()) {
-        clearMasterStorage();
-        toast.info("Master DC expired. Please upload latest Master DC.");
+        if (!script) {
+            script = document.createElement('script');
+            script.id = SCRIPT_ID;
+            script.src = "https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js";
+            script.async = true;
+            script.onload = () => setLibLoaded(true);
+            document.body.appendChild(script);
         } else {
-        try {
-            setTableData(JSON.parse(savedData));
-            setFileName(savedName || "Cached Database");
-        } catch (e) {
-            console.error("Cache corrupted:", e);
-            clearMasterStorage();
+            setLibLoaded(true); 
         }
-        }
-    }
 
-    // Cleanup: Only remove if you truly want the lib gone when navigating away
-    // Usually, keeping it loaded is better for performance.
-    return () => {
-        // Optional: document.body.removeChild(script);
-    };
+        const savedData = localStorage.getItem(STORAGE_KEYS.DB);
+        const savedName = localStorage.getItem(STORAGE_KEYS.NAME);
+
+        if (savedData) {
+            if (isMasterDataExpired()) {
+            clearMasterStorage();
+            toast.info("Master DC expired. Please upload latest Master DC.");
+            } else {
+            try {
+                setTableData(JSON.parse(savedData));
+                setFileName(savedName || "Cached Database");
+            } catch (e) {
+                console.error("Cache corrupted:", e);
+                clearMasterStorage();
+            }
+            }
+        }
+
+        return () => {
+            document.body.removeChild(script);
+        };
     }, []);
 
     const filteredData = useMemo(() => {
