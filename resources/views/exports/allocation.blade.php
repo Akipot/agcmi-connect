@@ -49,7 +49,7 @@
                 $quanity = $item['qtyRequest'] ?? 0;
                 $ohAfterAllocation = $item['ohAfterAllocation'] ?? 0;
 
-                $rowIsRed = ($ohAfterAllocation == 0);
+                $rowIsRed = ($ohAfterAllocation <= 0);
                 
                 $rowStyle = $rowIsRed ? 'background-color: #FFC7CE; color: #9C0006;' : '';
             @endphp

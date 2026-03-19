@@ -92,8 +92,11 @@ export const MasterDCUpload = () => {
         if (!libLoaded) return;
         setError(null);
 
-        if (!file.name.toLowerCase().endsWith('.xlsx')) {
-            setError("Invalid Format: Please use .xlsx");
+       if (!file.name.toLowerCase().endsWith('.xlsx')) {
+            setError(
+                "Invalid Format: Please use .xlsx. " + 
+                "To convert: Open your file in Excel > Save As > Choose 'Excel Workbook (*.xlsx)'."
+            );
             return;
         }
 
