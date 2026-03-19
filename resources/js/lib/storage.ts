@@ -1,5 +1,3 @@
-// src/lib/storage.ts
-
 export const STORAGE_KEYS = {
   DB: 'master_dc_db',
   NAME: 'master_dc',
@@ -13,7 +11,6 @@ export const isMasterDataExpired = (): boolean => {
   const now = new Date();
   const expiryDate = new Date(expiryDateStr);
 
-  // Normalize to midnight for a date-only comparison
   const todayAtMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const expiryAtMidnight = new Date(expiryDate.getFullYear(), expiryDate.getMonth(), expiryDate.getDate()).getTime();
 

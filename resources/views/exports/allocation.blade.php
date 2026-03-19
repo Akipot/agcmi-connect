@@ -10,6 +10,10 @@
             <th colspan="8" style="text-align: left; font-weight: bold; color: #1F4E78;">{{ $items->first()['locationCode'] ?? 'N/A' }}</th>
         </tr>
         <tr>
+            <th colspan="1" style="font-weight: bold;">PLU:</th>
+            <th colspan="8" style="text-align: left; font-weight: bold; color: #1F4E78;">{{ $items->first()['plu'] ?? 'N/A' }}</th>
+        </tr>
+        <tr>
             <th colspan="1" style="font-weight: bold;">Item:</th>
             <th colspan="8" style="text-align: left; font-weight: bold; color: #1F4E78;">{{ $items->first()['itemDescp'] ?? 'N/A' }}</th>
         </tr>
