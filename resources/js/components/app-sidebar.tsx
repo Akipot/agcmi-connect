@@ -26,7 +26,7 @@ const mainNavItems: NavItem[] = [
         icon: PackageSearch,
     },
     {
-        title: 'Logs',
+        title: 'Manual Allocation Logs',
         href: `/logs`,
         icon: Logs,
     },

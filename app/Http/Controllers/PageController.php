@@ -27,4 +27,14 @@ class PageController extends Controller
         return Inertia::render('process/index');
     }
 
+    public function logs()
+    {
+        return Inertia::render('logs/index');
+    }
+
+    public function viewLogsDetails()
+    {
+        return Inertia::render('logs/view/index');
+    }
+
 }
