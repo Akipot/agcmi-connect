@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { PackageSearch, Upload, Settings2 } from 'lucide-react';
+import { PackageSearch, Upload, Logs } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -24,6 +24,11 @@ const mainNavItems: NavItem[] = [
         title: 'Process Manual Allocation',
         href: `/process-manual-allocation`,
         icon: PackageSearch,
+    },
+    {
+        title: 'Logs',
+        href: `/logs`,
+        icon: Logs,
     },
 
 ];

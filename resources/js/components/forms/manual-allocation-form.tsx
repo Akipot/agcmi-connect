@@ -499,7 +499,6 @@ export const FormCard: React.FC<FormCardProps> = ({ onDirtyChange }) => {
         setRequests([]);
         setSearchQuery("");
         localStorage.removeItem('allocation_draft');
-        // Clear Ref so an empty table isn't considered "unsaved"
         lastSavedRef.current = ""; 
         onDirtyChange(false);
         setIsClearOpen(false);

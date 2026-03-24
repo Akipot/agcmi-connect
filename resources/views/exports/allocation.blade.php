@@ -26,10 +26,8 @@
             <th colspan="8" style="text-align: left;">{{ collect($items)->sum('qtyRequest') }}</th>
         </tr>
         
-        {{-- Spacer Row (Row 6) --}}
         <tr><th colspan="8"></th></tr>
 
-        {{-- Main Table Headers (Row 7) --}}
         <tr>
             <th style="font-weight: bold; background-color: #D3D3D3; border: 1px solid #000000; text-align: center;">Store Code</th>
             <th style="font-weight: bold; background-color: #D3D3D3; border: 1px solid #000000; text-align: center;">Store Name</th>
@@ -46,7 +44,7 @@
         @foreach($items as $item)
             @php
                 $c2 = $item['c2'] ?? 0;
-                $quanity = $item['qtyRequest'] ?? 0;
+                $quantity = $item['qtyRequest'] ?? 0;
                 $ohAfterAllocation = $item['ohAfterAllocation'] ?? 0;
 
                 $rowIsRed = ($ohAfterAllocation <= 0);
@@ -61,7 +59,7 @@
                 <td style="text-align: center; border: 1px solid #000000; {{ $rowStyle }}">{{ $item['locationCode'] ?? '' }}</td>
                 <td style="text-align: right; border: 1px solid #000000; {{ $rowStyle }}">{{ $item['tail1'] ?? '' }}</td>
                 <td style="text-align: right; border: 1px solid #000000; {{ $rowStyle }}">{{ number_format($c2) }}</td>
-                <td style="text-align: right; border: 1px solid #000000; {{ $rowStyle }}">{{ number_format($quanity) }}</td>
+                <td style="text-align: right; border: 1px solid #000000; {{ $rowStyle }}">{{ number_format($quantity) }}</td>
                 <td style="text-align: right; border: 1px solid #000000; {{ $rowStyle }}">{{ number_format($ohAfterAllocation) }}</td>
             </tr>
         @endforeach
