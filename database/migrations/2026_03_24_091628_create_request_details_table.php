@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::create('RequestDetails', function (Blueprint $table) {
             $table->id();
-            // Foreign Key to link to the RequestHeaders table
             $table->unsignedBigInteger('Request_ID'); 
             
             $table->string('StoreCode');
@@ -26,8 +25,6 @@ return new class extends Migration
             $table->integer('Quantity');
             $table->integer('OH_AfterAllocation');
             $table->timestamps();
-
-            // Optional: Ensure if a Header is deleted, details are too
             $table->foreign('Request_ID')->references('Request_ID')->on('RequestHeaders')->onDelete('cascade');
         });
     }

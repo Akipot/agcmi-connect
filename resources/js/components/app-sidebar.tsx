@@ -1,5 +1,14 @@
 import { Link } from '@inertiajs/react';
-import { PackageSearch, Upload, Logs } from 'lucide-react';
+import { 
+    BookOpen, 
+    Heart, 
+    BarChart3, 
+    Megaphone, 
+    MapPin, 
+    Book as Bible, 
+    History,
+    LayoutDashboard
+} from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -16,21 +25,48 @@ import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
     {
-        title: 'Upload Master DC Report',
-        href: `/upload-master-dc-report`,
-        icon: Upload,
+        title: 'Dashboard',
+        href: '/dashboard',
+        icon: LayoutDashboard,
     },
     {
-        title: 'Process Manual Allocation',
-        href: `/process-manual-allocation`,
-        icon: PackageSearch,
+        title: 'Announcements',
+        href: '/announcements',
+        icon: Megaphone,
+    },
+    // Group: Spiritual Growth
+    {
+        title: 'Daily Devotions',
+        href: '/daily-devotions',
+        icon: BookOpen,
     },
     {
-        title: 'Manual Allocation Logs',
-        href: `/logs`,
-        icon: Logs,
+        title: 'Read Bible',
+        href: '/read-bible',
+        icon: Bible,
     },
-
+    // Group: Stewardship & Community
+    {
+        title: 'Tithes & Offerings',
+        href: '/tithes-offerings',
+        icon: Heart,
+    },
+    {
+        title: 'Our Churches',
+        href: '/our-churches',
+        icon: MapPin,
+    },
+    // Group: Admin
+    {
+        title: 'Reports',
+        href: '/reports',
+        icon: BarChart3,
+    },
+    {
+        title: 'Administer Logs',
+        href: '/logs',
+        icon: History,
+    },
 ];
 
 // const footerNavItems: NavItem[] = [
