@@ -1,4 +1,4 @@
-import MyHubLogo from '@assets/icon.svg';
+import MyHubLogo from '@assets/icon.png';
 
 export default function AppLogoIcon(props: React.HTMLAttributes<HTMLImageElement>) {
     return (

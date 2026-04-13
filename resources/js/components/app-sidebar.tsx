@@ -7,7 +7,8 @@ import {
     MapPin, 
     Book as Bible, 
     History,
-    LayoutDashboard
+    LayoutDashboard,
+    User
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -24,6 +25,11 @@ import {
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
+    {
+        title: 'Profile',
+        href: '/profile',
+        icon: User,
+    },
     {
         title: 'Dashboard',
         href: '/dashboard',
