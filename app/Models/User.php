@@ -36,10 +36,23 @@ class User extends Authenticatable
 
     public static function checkAccount($data)
     {
-        $result = DB::select('[sp_account_Get] ' . MyHelper::generateQM($data), $data);
+        $result = DB::select('[sp_account_Get]' . MyHelper::generateQM($data), $data);
         
         if (!empty($result)) {
             return self::hydrate([(array) $result[0]])->first();
+        }
+
+        return null;
+    }
+
+    // app/Models/User.php
+
+    public function getMemberDetails()
+    {
+        $result = DB::select('[sp_MemberDetails_Get] ' . MyHelper::generateQM([$this->user_id]), [$this->user_id]);
+
+        if (!empty($result)) {
+            return $result[0];
         }
 
         return null;

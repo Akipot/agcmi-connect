@@ -16,7 +16,9 @@ import { UserMenuContent } from '@/components/user-menu-content';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 export function NavUser() {
-    const { auth } = usePage().props;
+    const { auth } = usePage().props as any;
+    const { user, member } = auth;
+
     const { state } = useSidebar();
     const isMobile = useIsMobile();
 
@@ -28,25 +30,17 @@ export function NavUser() {
                         <SidebarMenuButton
                             size="lg"
                             className="group text-sidebar-accent-foreground data-[state=open]:bg-sidebar-accent"
-                            data-test="sidebar-menu-button"
                         >
-                            {/* <UserInfo user={auth.user} /> */}
-                            <UserInfo user={auth.user} />
+                            <UserInfo user={member} showEmail={state !== 'collapsed'} />
                             <ChevronsUpDown className="ml-auto size-4" />
                         </SidebarMenuButton>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent
                         className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
                         align="end"
-                        side={
-                            isMobile
-                                ? 'bottom'
-                                : state === 'collapsed'
-                                  ? 'left'
-                                  : 'bottom'
-                        }
+                        side={isMobile ? 'bottom' : state === 'collapsed' ? 'left' : 'bottom'}
                     >
-                        <UserMenuContent user={auth.user} />
+                        <UserMenuContent user={member} />
                     </DropdownMenuContent>
                 </DropdownMenu>
             </SidebarMenuItem>

@@ -10,13 +10,14 @@ import { UserInfo } from '@/components/user-info';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
 import { logout } from '@/routes';
 // import { edit } from '@/routes/profile';
-import type { User } from '@/types';
+import type { Member } from '@/types';
 
 type Props = {
-    user: User;
+    user: Member;
 };
 
 export function UserMenuContent({ user }: Props) {
+
     const cleanup = useMobileNavigation();
 
     const handleLogout = () => {
@@ -31,7 +32,7 @@ export function UserMenuContent({ user }: Props) {
                     <UserInfo user={user} showEmail={true} />
                 </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
+            {/* <DropdownMenuSeparator />
             <DropdownMenuGroup>
                 <DropdownMenuItem asChild>
                     <Link
@@ -44,7 +45,7 @@ export function UserMenuContent({ user }: Props) {
                         Settings
                     </Link>
                 </DropdownMenuItem>
-            </DropdownMenuGroup>
+            </DropdownMenuGroup> */}
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
                 <Link
