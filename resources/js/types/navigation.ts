@@ -7,9 +7,14 @@ export type BreadcrumbItem = {
     href: NonNullable<InertiaLinkProps['href']>;
 };
 
-export type NavItem = {
+export interface NavItem {
     title: string;
-    href: NonNullable<InertiaLinkProps['href']>;
-    icon?: LucideIcon | null;
+    href?: string;
+    icon?: LucideIcon | React.ComponentType<any> | null;
     isActive?: boolean;
-};
+    children?: NavItem[];
+    // Change HTMLAnchorElement to Element
+    onClick?: (e: React.MouseEvent<Element, MouseEvent>) => void; 
+    external?: boolean; 
+    target?: string;
+}
