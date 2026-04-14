@@ -2,16 +2,15 @@
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use Illuminate\Support\Facades\Route;
+use Laravel\Fortify\Features;
 use Inertia\Inertia;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\ManualAllocationController;
 
-Route::controller(PageController::class)
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::controller(PageController::class)
     ->group(function () {
-        Route::get('/', 'index')->name('home');
-        Route::get('/upload-master-dc-report', 'uploadMasterDCReport')->name('uploadMasterDCReport');
-        Route::get('/process-manual-allocation', 'processManualAllocation')->name('processManualAllocation');
-        Route::get('/logs', 'logs')->name('logs');
+        Route::get('/', 'home')->name('home');
     });
+});
 
-Route::get('/logs/view/{id}', [ManualAllocationController::class, 'viewLogsDetails'])->name('logs.view');

@@ -31,7 +31,7 @@ import type { NavItem } from '@/types';
 const mainNavItems: NavItem[] = [
     {
         title: 'Home',
-        href: '/home',
+        href: '/',
         icon: Home,
     },
     {

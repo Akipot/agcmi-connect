@@ -4,8 +4,12 @@ namespace App\Providers;
 
 use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
+use Illuminate\Validation\ValidationException;
+use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
@@ -31,6 +35,24 @@ class FortifyServiceProvider extends ServiceProvider
         $this->configureActions();
         $this->configureViews();
         $this->configureRateLimiting();
+
+        Fortify::authenticateUsing(function (Request $request) {
+            $data = [$request->userName];
+
+            $user = User::checkAccount($data);
+            if (!$user) {
+                throw ValidationException::withMessages([
+                    'userName' => ['Account not found.'],
+                ]);
+            }
+            if (Hash::check($request->password, $user->password)) {
+                return $user;
+            }
+
+            throw ValidationException::withMessages([
+                'password' => ['The password you entered is incorrect.'],
+            ]);
+        });
     }
 
     /**
@@ -49,7 +71,7 @@ class FortifyServiceProvider extends ServiceProvider
     {
         Fortify::loginView(fn (Request $request) => Inertia::render('auth/login', [
             'canResetPassword' => Features::enabled(Features::resetPasswords()),
-            'canRegister' => Features::enabled(Features::registration()),
+            // Removed canRegister since you're using admin-created accounts only
             'status' => $request->session()->get('status'),
         ]));
 
@@ -83,7 +105,8 @@ class FortifyServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('login', function (Request $request) {
-            $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$request->ip());
+            // Using the custom userName for the throttle key
+            $throttleKey = Str::transliterate(Str::lower($request->input('userName')).'|'.$request->ip());
 
             return Limit::perMinute(5)->by($throttleKey);
         });

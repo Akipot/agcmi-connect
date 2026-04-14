@@ -51,7 +51,7 @@ export default function Home({ dailyVerse }: HomeProps) {
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Home Feed" />
+            <Head title="Home" />
 
             {/* Container centered with max-width */}
             <div className="mx-auto max-w-5xl px-4 py-8 md:grid md:grid-cols-12 md:gap-8">

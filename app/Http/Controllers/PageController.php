@@ -13,7 +13,7 @@ use Inertia\Inertia;
 
 class PageController extends Controller
 {
-    public function index()
+    public function home()
     {
         // List of inspiring verses to pick from randomly
         $seeds = ['john 3:16', 'phil 4:13', 'psalm 23:1', 'jer 29:11', 'isaiah 40:31', 'romans 8:28'];
