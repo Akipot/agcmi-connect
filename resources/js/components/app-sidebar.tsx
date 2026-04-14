@@ -7,12 +7,16 @@ import {
     MapPin, 
     Book as Bible, 
     History,
-    LayoutDashboard,
-    User
+    MessageSquareHeart,
+    User,
+    Home,
+    Music,
+    Settings2
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
+import { NavUser } from '@/components/nav-user';
 import {
     Sidebar,
     SidebarContent,
@@ -26,15 +30,20 @@ import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
     {
+        title: 'Home',
+        href: '/home',
+        icon: Home,
+    },
+    {
         title: 'Profile',
         href: '/profile',
         icon: User,
     },
-    {
-        title: 'Dashboard',
-        href: '/dashboard',
-        icon: LayoutDashboard,
-    },
+    // {
+    //     title: 'Dashboard',
+    //     href: '/dashboard',
+    //     icon: LayoutDashboard,
+    // },
     {
         title: 'Announcements',
         href: '/announcements',
@@ -47,9 +56,19 @@ const mainNavItems: NavItem[] = [
         icon: BookOpen,
     },
     {
+        title: 'Prayer Requests',
+        href: '/prayer-requests',
+        icon: MessageSquareHeart,
+    },
+    {
         title: 'Read Bible',
         href: '/read-bible',
         icon: Bible,
+    },
+    {
+        title: 'Praise & Worship',
+        href: '/praise-worship',
+        icon: Music,
     },
     // Group: Stewardship & Community
     {
@@ -75,14 +94,14 @@ const mainNavItems: NavItem[] = [
     },
 ];
 
-// const footerNavItems: NavItem[] = [
-//     {
-//         title: 'Settings',
-//         href: '',
-//         icon: Settings2,
-//     },
+const footerNavItems: NavItem[] = [
+    {
+        title: 'Settings',
+        href: '',
+        icon: Settings2,
+    },
 
-// ];
+];
 
 export function AppSidebar() {
     return (
@@ -103,10 +122,10 @@ export function AppSidebar() {
                 <NavMain items={mainNavItems} />
             </SidebarContent>
 
-            {/* <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
+            <SidebarFooter>
+                {/* <NavFooter items={footerNavItems} className="mt-auto" /> */}
                 <NavUser />
-            </SidebarFooter> */}
+            </SidebarFooter>
         </Sidebar>
     );
 }
