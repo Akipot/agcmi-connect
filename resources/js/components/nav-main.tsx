@@ -65,6 +65,10 @@ function DropdownNavItem({ item, isCollapsed }: { item: NavItem; isCollapsed: bo
         }
     }, [isOpen, isCollapsed, isMobile]);
 
+    useEffect(() => {
+        setIsOpen(false);
+    }, [isCollapsed]);
+
     const subMenuContent = (
         <div className={`flex flex-col ${isCollapsed && !isMobile ? "min-w-[12rem] bg-white dark:bg-gray-900 border rounded-md shadow-xl p-1" : "gap-1 ml-6 mt-1"}`}>
             {isCollapsed && !isMobile && (

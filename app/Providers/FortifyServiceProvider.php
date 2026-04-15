@@ -37,14 +37,14 @@ class FortifyServiceProvider extends ServiceProvider
         $this->configureRateLimiting();
 
         Fortify::authenticateUsing(function (Request $request) {
-            $data = [$request->userName];
+            $user = User::checkAccount($request->userName);
 
-            $user = User::checkAccount($data);
             if (!$user) {
                 throw ValidationException::withMessages([
                     'userName' => ['Account not found.'],
                 ]);
             }
+
             if (Hash::check($request->password, $user->password)) {
                 return $user;
             }

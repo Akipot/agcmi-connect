@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useSidebar } from '@/components/ui/sidebar';
 import { 
     Home, 
+    UserSquare,
     BookOpen, 
     Book as Bible, 
     Heart, 
@@ -38,6 +39,11 @@ const mainNavItems: NavItem[] = [
         title: 'Home',
         href: '/',
         icon: Home,
+    },
+    {
+        title: 'Profile',
+        href: '/',
+        icon: UserSquare,
     },
     {
         title: 'Spiritual Growth',
@@ -135,7 +141,6 @@ function useResponsiveCollapsed() {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // It's effectively collapsed if we aren't on mobile and state is 'collapsed'
     return !isMobile && state === 'collapsed';
 }
 

@@ -2,8 +2,6 @@
 
 namespace App\Models;
 
-use App\Helpers\MyHelper;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -29,32 +27,43 @@ class User extends Authenticatable
 
     public $timestamps = true;
 
+
+    public static function checkAccount($username)
+    {
+        return self::where('userName', $username)->first();
+    }
+
+
     public function isAdmin(): bool
     {
         return (int) $this->type === 1;
     }
 
-    public static function checkAccount($data)
+    public function getTypeNameAttribute()
     {
-        $result = DB::select('[sp_account_Get]' . MyHelper::generateQM($data), $data);
-        
-        if (!empty($result)) {
-            return self::hydrate([(array) $result[0]])->first();
-        }
-
-        return null;
+        return match ((int)$this->type) {
+            1 => 'Admin',
+            2 => 'Member',
+            default => 'User',
+        };
     }
-
-    // app/Models/User.php
 
     public function getMemberDetails()
     {
-        $result = DB::select('[sp_MemberDetails_Get] ' . MyHelper::generateQM([$this->user_id]), [$this->user_id]);
+        $userWithDetails = $this->load('details');
 
-        if (!empty($result)) {
-            return $result[0];
+        if (!$userWithDetails->details) {
+            return (object) ['Type' => $this->type_name];
         }
 
-        return null;
+        return (object) array_merge(
+            $userWithDetails->details->toArray(), 
+            ['Type' => $this->type_name]
+        );
+    }
+
+    public function details()
+    {
+        return $this->hasOne(MemberDetail::class, 'user_id', 'user_id');
     }
 }
