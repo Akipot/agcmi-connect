@@ -15,14 +15,11 @@ class PageController extends Controller
 {
     public function home()
     {
-        // List of inspiring verses to pick from randomly
         $seeds = ['john 3:16', 'phil 4:13', 'psalm 23:1', 'jer 29:11', 'isaiah 40:31', 'romans 8:28'];
         
-        // Pick one based on the day of the year so all members see the same one
         $selected = $seeds[date('z') % count($seeds)]; 
 
         try {
-            // Fetching with a specific translation (e.g., KJV or WEB)
             $response = Http::get("https://bible-api.com/{$selected}?translation=kjv");
             $data = $response->successful() ? $response->json() : null;
         } catch (\Exception $e) {
@@ -32,6 +29,36 @@ class PageController extends Controller
         return Inertia::render('home', [
             'dailyVerse' => $data
         ]);
+    }
+
+    public function churchRegistry()
+    {
+        return Inertia::render('admin/church-registry/index');
+    }
+
+    public function modules()
+    {
+        return Inertia::render('maintenance/modules/index');
+    }
+
+    public function ministries()
+    {
+        return Inertia::render('maintenance/ministries/index');
+    }
+
+    public function roles()
+    {
+        return Inertia::render('maintenance/roles/index');
+    }
+
+    public function actions()
+    {
+        return Inertia::render('maintenance/actions/index');
+    }
+
+    public function moduleacess()
+    {
+        return Inertia::render('maintenance/moduleacess/index');
     }
 
 }

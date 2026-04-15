@@ -1,6 +1,7 @@
 import { Link } from '@inertiajs/react';
 import React, { useState, useEffect } from 'react';
 import { useSidebar } from '@/components/ui/sidebar';
+import { WebUrl } from '@/components/others/weburl';
 import { 
     Home, 
     UserSquare,
@@ -15,9 +16,16 @@ import {
     BarChart3, 
     Users,     
     Church,    
-    Calendar,  
     ShieldCheck,
-    Settings2
+    Settings2,
+    HandHelping,
+    Settings,
+    Briefcase,
+    Fingerprint,
+    Zap,
+    SquareSplitVertical,
+    LayoutPanelLeft,
+    KeyRound
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -52,39 +60,39 @@ const mainNavItems: NavItem[] = [
         children: [
             {
                 title: 'Bible Study',
-                href: '/bible-study',
+                href: `${WebUrl}/bible-study`,
                 icon: Bible,
             },
             {
                 title: 'Daily Devotion',
-                href: '/devotion',
+                href: `${WebUrl}/devotion`,
                 icon: Heart,
             },
             {
                 title: 'Praise & Worship',
-                href: '/praise-worship',
+                href: `${WebUrl}/praise-worship`,
                 icon: Music,
             },
             {
                 title: 'Prayer Requests',
-                href: '/prayer-requests',
+                href: `${WebUrl}/prayer-requests`,
                 icon: MessageSquareHeart,
             }
         ]
     },
     {
         title: 'Announcements',
-        href: '/announcements',
+        href: `${WebUrl}/announcements`,
         icon: Megaphone,
     },
     {
         title: 'Tithes & Offerings',
-        href: '/tithes-offerings',
+        href: `${WebUrl}/tithes-offerings`,
         icon: HandCoins,
     },
     {
         title: 'Our Churches',
-        href: '/our-churches',
+        href: `${WebUrl}/our-churches`,
         icon: MapPin,
     },
     {
@@ -94,29 +102,56 @@ const mainNavItems: NavItem[] = [
         children: [
             {
                 title: 'Reports',
-                href: '/reports',
+                href: `${WebUrl}/reports`,
                 icon: BarChart3,
             },
             {
                 title: 'Membership',
-                href: '/membership',
+                href: `${WebUrl}/membership`,
                 icon: Users,
             },
             {
-                title: 'Churches',
-                href: '/churches',
-                icon: MapPin,
-            },
-            {
-                title: 'Ministries',
-                href: '/ministries',
+                title: 'Church Registry',
+                href: `${WebUrl}/admin/church-registry`,
                 icon: Church,
             },
+            // {
+            //     title: 'Calendar of Activities',
+            //     href: '/calendar',
+            //     icon: Calendar,
+            // },
+        ]
+    },
+    {
+        title: 'Maintenance',
+        href: '#',
+        icon: Settings,
+        children: [
             {
-                title: 'Calendar of Activities',
-                href: '/calendar',
-                icon: Calendar,
+                title: 'Ministries',
+                href: `${WebUrl}/maintenance/ministries`,
+                icon: HandHelping,
             },
+            {
+                title: 'Modules',
+                href: `${WebUrl}/maintenance/modules`,
+                icon: LayoutPanelLeft,
+            },
+            {
+                title: 'Roles',
+                href: `${WebUrl}/maintenance/roles`,
+                icon: Briefcase,
+            },
+            {
+                title: 'Module Access',
+                href: `${WebUrl}/maintenance/module-access`,
+                icon: KeyRound,
+            },
+            {
+                title: 'Actions',
+                href: `${WebUrl}/maintenance/actions`,
+                icon: Zap,
+            }
         ]
     },
 ];
