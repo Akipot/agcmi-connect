@@ -4,20 +4,20 @@ namespace App\Http\Controllers\Maintenance;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Module;
+use App\Models\Role;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
-class ModuleController extends Controller
+class RoleController extends Controller
 {
-    public function getModules(): JsonResponse
+    public function getRoles(): JsonResponse
     {
-        $modules = DB::table('modules as a')
+        $roles = DB::table('roles as a')
             ->leftJoin('member_details as b', 'a.insertBy', '=', 'b.user_id')
             ->select([
-                'a.module_id', 
-                'a.module', 
+                'a.role_id', 
+                'a.role', 
                 'a.isActive', 
                 'a.insertDate', 
                 'b.FirstName as firstName'
@@ -25,16 +25,16 @@ class ModuleController extends Controller
             ->orderBy('a.insertDate', 'desc')
             ->get();
 
-        return response()->json($modules);
+        return response()->json($roles);
     }
 
     /**
-     * Store a new module
+     * Store a new role
      */
-    public function storeModule(Request $request): JsonResponse
+    public function storeRole(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'module'   => 'required|string|max:255|unique:modules,module',
+            'role'   => 'required|string|max:255|unique:roles,role',
             'isActive' => 'required|boolean',
         ]);
 
@@ -43,7 +43,7 @@ class ModuleController extends Controller
             $now    = now();
 
             $params = [
-                'module'     => $validated['module'],
+                'role'     => $validated['role'],
                 'isActive'   => $validated['isActive'],
                 'insertBy'   => $userId,
                 'insertDate' => $now,
@@ -51,28 +51,28 @@ class ModuleController extends Controller
                 'updateDate' => $now,
             ];
 
-            DB::table('modules')->insert($params);
+            DB::table('roles')->insert($params);
 
-            return response()->json(['message' => 'Module registered successfully'], 201);
+            return response()->json(['message' => 'Role registered successfully'], 201);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Error: ' . $e->getMessage()], 500);
         }
     }
 
     /**
-     * Update existing module
+     * Update existing role
      */
-    public function updateModule(Request $request, $id)
+    public function updateRole(Request $request, $id)
     {
-        $module = Module::findOrFail($id);
+        $role = Role::findOrFail($id);
 
         $validated = $request->validate([
-            'module' => 'required|string|unique:modules,module,' . $id . ',module_id',
+            'role' => 'required|string|unique:roles,role,' . $id . ',role_id',
             'isActive' => 'required|boolean',
         ]);
 
-        $module->update($validated);
+        $role->update($validated);
 
-        return response()->json($module);
+        return response()->json($role);
     }
 }

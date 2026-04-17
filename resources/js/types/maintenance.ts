@@ -5,12 +5,17 @@ export interface BaseMaintenance {
     insertDate: string;
     updateBy: string;
     updateDate: string;
-    firstName?: string; // Joined from member_details
+    firstName?: string;
 }
 
 export interface Module extends BaseMaintenance {
     module_id: number;
     module: string;
+}
+
+export interface Role extends BaseMaintenance {
+    role_id: number;
+    role: string;
 }
 
 export interface Position extends BaseMaintenance {
@@ -36,7 +41,6 @@ export interface ModuleAccess extends BaseMaintenance {
     module_id: number;
     access_id: number;
     position_id: number;
-    // Relations loaded via Eloquent .with()
     module?: Module;
     action?: Action;
     position?: Position;
